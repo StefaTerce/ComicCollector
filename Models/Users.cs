@@ -6,15 +6,16 @@ namespace ComicCollector.Models
     {
         public int Id { get; set; }
 
-        [Required]
-        [StringLength(50)]
+        [Required(ErrorMessage = "Il nome utente è obbligatorio.")]
         public string Username { get; set; }
 
-        [Required]
-        [DataType(DataType.Password)]
+        [Required(ErrorMessage = "La password è obbligatoria.")]
         public string Password { get; set; }
 
-        [Required]
-        public string Role { get; set; } // "UTENTE" or "ADMIN"
+        [Required(ErrorMessage = "L'email è obbligatoria.")]
+        [EmailAddress(ErrorMessage = "Inserisci un indirizzo email valido.")]
+        public string Email { get; set; }
+
+        public string Role { get; set; }
     }
 }

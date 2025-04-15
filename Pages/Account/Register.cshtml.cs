@@ -20,28 +20,41 @@ namespace ComicCollector.Pages.Account
         [BindProperty]
         public User NewUser { get; set; }
 
+        public string ErrorMessage { get; set; }
+
         public async Task<IActionResult> OnPostAsync()
         {
             if (!ModelState.IsValid)
-                return Page();
-
-            NewUser.Role = "UTENTE";
-            _context.Users.Add(NewUser);
-            _context.SaveChanges();
-
-            // Automatic login after registration
-            var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.Name, NewUser.Username),
-                new Claim(ClaimTypes.Role, NewUser.Role)
-            };
+                ErrorMessage = "Errore nella validazione del modello. Assicurati di aver compilato tutti i campi correttamente.";
+                return Page();
+            }
 
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
+            try
+            {
+                NewUser.Role = "UTENTE";
+                _context.Users.Add(NewUser);
+                await _context.SaveChangesAsync();
 
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+                // Automatic login after registration
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, NewUser.Username),
+                    new Claim(ClaimTypes.Role, NewUser.Role)
+                };
 
-            return RedirectToPage("/Dashboard");
+                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                var principal = new ClaimsPrincipal(identity);
+
+                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+                return RedirectToPage("/Dashboard");
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = "Errore durante la registrazione: " + ex.Message;
+                return Page();
+            }
         }
     }
 }
