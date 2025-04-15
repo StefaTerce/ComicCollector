@@ -24,28 +24,12 @@ namespace ComicCollector.Pages.Account
 
         public async Task<IActionResult> OnPostAsync()
         {
-            // Imposta il valore predefinito del campo Role
-            if (string.IsNullOrEmpty(NewUser.Role))
-            {
-                NewUser.Role = "UTENTE";
-            }
-
-            // Verifica la validità del modello
-            if (!ModelState.IsValid)
-            {
-                ErrorMessage = "Errore nella validazione del modello. Campi non validi:";
-                foreach (var entry in ModelState)
-                {
-                    if (entry.Value.Errors.Count > 0)
-                    {
-                        ErrorMessage += $"\nCampo: {entry.Key}, Errore: {entry.Value.Errors[0].ErrorMessage}";
-                    }
-                }
-                return Page();
-            }
+            // Imposta il valore di default del campo Role
+            NewUser.Role = "UTENTE";
 
             try
             {
+                // Salva il nuovo utente nel database
                 _context.Users.Add(NewUser);
                 await _context.SaveChangesAsync();
 

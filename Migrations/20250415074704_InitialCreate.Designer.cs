@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ComicCollector.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250415073540_InitialCreate")]
+    [Migration("20250415074704_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
