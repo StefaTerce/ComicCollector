@@ -10,6 +10,7 @@ namespace ComicCollector.Models
         public string Username { get; set; }
 
         [Required(ErrorMessage = "La password è obbligatoria.")]
+        [DataType(DataType.Password)]
         public string Password { get; set; }
 
         [Required(ErrorMessage = "L'email è obbligatoria.")]
