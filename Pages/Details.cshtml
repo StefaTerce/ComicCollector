@@ -1,0 +1,20 @@
+﻿@page "{id:int}"
+@model ComicCollector.Pages.DetailsModel
+@{
+    ViewData["Title"] = "Dettaglio";
+}
+<div class="card">
+    <img src="@Model.Item.ImageUrl" class="card-img-top" alt="@Model.Item.Title" style="height:300px; object-fit:cover;" />
+    <div class="card-body">
+        <h3 class="card-title">@Model.Item.Title</h3>
+        <p>@Model.Item.Description</p>
+        <p><strong>Categorie: </strong>@Model.Item.Categories</p>
+        <form method="post" asp-page-handler="AddFavorite">
+            <input type="hidden" name="ItemId" value="@Model.Item.Id" />
+            <input type="hidden" name="ItemType" value="@Model.Type" />
+            <input type="hidden" name="Title" value="@Model.Item.Title" />
+            <input type="hidden" name="ImageUrl" value="@Model.Item.ImageUrl" />
+            <button type="submit" class="btn btn-success">Aggiungi ai Preferiti</button>
+        </form>
+    </div>
+</div>
