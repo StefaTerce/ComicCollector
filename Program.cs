@@ -1,25 +1,16 @@
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using ComicCollector.Data;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configura il database
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=MangaAppAuth.db";
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(connectionString)); // Usa Sqlite per semplicità
-
-// Configura Identity
-builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = false)
-    .AddRoles<IdentityRole>() // Aggiungi il supporto ai ruoli
-    .AddEntityFrameworkStores<ApplicationDbContext>();
-
-// Aggiungi Razor Pages
+// Add services to the container.
 builder.Services.AddRazorPages();
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
 
-// Configura il middleware
+// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -28,20 +19,9 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-
 app.UseRouting();
-
-app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapRazorPages();
 
 app.Run();
-
-
-// Aggiungi dopo app.Run();
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    await RoleSeeder.SeedRolesAsync(services);
-}
