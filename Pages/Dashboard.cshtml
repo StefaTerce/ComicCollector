@@ -1,0 +1,21 @@
+﻿@page
+@model ComicCollector.Pages.DashboardModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<h1>Manga & Comics</h1>
+<div class="row">
+    @foreach (var manga in Model.MangaList)
+    {
+        <div class="col-md-4">
+            <div class="card">
+                <img src="@manga.ImageUrl" class="card-img-top" alt="@manga.Title">
+                <div class="card-body">
+                    <h5 class="card-title">@manga.Title</h5>
+                    <p class="card-text">@manga.Description</p>
+                </div>
+            </div>
+        </div>
+    }
+</div>

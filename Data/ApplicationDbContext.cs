@@ -1,5 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
-using ComicCollector.Models;
+﻿using ComicCollector.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace ComicCollector.Data
 {
@@ -11,5 +11,6 @@ namespace ComicCollector.Data
         }
 
         public DbSet<User> Users { get; set; }
+        public DbSet<Manga> Manga { get; set; }
     }
 }

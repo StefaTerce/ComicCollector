@@ -1,6 +1,9 @@
 ﻿using ComicCollector.Data;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.Security.Claims;
 
 namespace ComicCollector.Pages.Account
 {
@@ -20,7 +23,7 @@ namespace ComicCollector.Pages.Account
 
         public string ErrorMessage { get; set; }
 
-        public IActionResult OnPost()
+        public async Task<IActionResult> OnPostAsync()
         {
             var user = _context.Users.FirstOrDefault(u => u.Username == Username && u.Password == Password);
 
@@ -30,10 +33,18 @@ namespace ComicCollector.Pages.Account
                 return Page();
             }
 
-            if (user.Role == "ADMIN")
-                return RedirectToPage("/Admin/Dashboard");
+            var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, user.Username),
+                    new Claim(ClaimTypes.Role, user.Role)
+                };
 
-            return RedirectToPage("/User/Dashboard");
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
+
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+            return RedirectToPage("/Dashboard");
         }
     }
 }
