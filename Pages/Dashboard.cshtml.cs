@@ -1,38 +1,70 @@
-﻿using ComicCollector.Data;
-using ComicCollector.Models;
+﻿using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+using ComicCollector.Data;
+using ComicCollector.Models;
+using ComicCollector.ViewModels;
 
 namespace ComicCollector.Pages
 {
     [Authorize]
     public class DashboardModel : PageModel
     {
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly ApplicationDbContext _context;
 
-        public DashboardModel(ApplicationDbContext context)
+        public DashboardModel(
+            UserManager<ApplicationUser> userManager,
+            ApplicationDbContext context)
         {
+            _userManager = userManager;
             _context = context;
         }
 
-        public List<Manga> MangaList { get; set; }
+        public DashboardViewModel DashboardData { get; set; } = new DashboardViewModel();
 
-        public void OnGet()
+        public async Task<IActionResult> OnGetAsync()
         {
-            // Simulating API fetch and saving to database
-            if (!_context.Manga.Any())
-            {
-                var mangaFromApi = new List<Manga> // This data would come from an actual API
-                {
-                    new Manga { Title = "Naruto", Description = "A ninja story", ImageUrl = "https://example.com/naruto.jpg" },
-                    new Manga { Title = "One Piece", Description = "Pirate adventures", ImageUrl = "https://example.com/onepiece.jpg" }
-                };
+            var user = await _userManager.GetUserAsync(User);
 
-                _context.Manga.AddRange(mangaFromApi);
-                _context.SaveChanges();
+            if (user == null)
+            {
+                return NotFound();
             }
 
-            MangaList = _context.Manga.ToList();
+            // Redirect if admin
+            if (await _userManager.IsInRoleAsync(user, "Admin"))
+            {
+                return RedirectToPage("/Admin/Dashboard");
+            }
+
+            DashboardData.RecentComics = await _context.Comics
+                .Where(c => c.UserId == user.Id)
+                .OrderByDescending(c => c.Id)
+                .Take(5)
+                .ToListAsync();
+
+            DashboardData.RecentMangas = await _context.Mangas
+                .Where(m => m.UserId == user.Id)
+                .OrderByDescending(m => m.Id)
+                .Take(5)
+                .ToListAsync();
+
+            DashboardData.FavoriteComics = await _context.Comics
+                .Where(c => c.UserId == user.Id && c.IsFavorite)
+                .Take(5)
+                .ToListAsync();
+
+            DashboardData.FavoriteMangas = await _context.Mangas
+                .Where(m => m.UserId == user.Id && m.IsFavorite)
+                .Take(5)
+                .ToListAsync();
+
+            return Page();
         }
     }
 }

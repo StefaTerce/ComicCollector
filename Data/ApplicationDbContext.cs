@@ -1,30 +1,33 @@
 ﻿using ComicCollector.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace ComicCollector.Data
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
         {
         }
-        public DbSet<Manga> Manga { get; set; }
-        public DbSet<User> Users { get; set; }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        public DbSet<Comic> Comics { get; set; }
+        public DbSet<Manga> Mangas { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder builder)
         {
-            if (!optionsBuilder.IsConfigured)
-            {
-                optionsBuilder.UseSqlServer("YourConnectionStringHere",
-                    sqlServerOptionsAction: sqlOptions =>
-                    {
-                        sqlOptions.EnableRetryOnFailure(
-                            maxRetryCount: 5, // Numero massimo di tentativi
-                            maxRetryDelay: TimeSpan.FromSeconds(10), // Ritardo massimo
-                            errorNumbersToAdd: null); // Specificare codici di errore aggiuntivi, se necessario
-                    });
-            }
+            base.OnModelCreating(builder);
+
+            // Configurazioni addizionali se necessarie
+            builder.Entity<Comic>()
+                .HasOne(c => c.User)
+                .WithMany(u => u.Comics)
+                .HasForeignKey(c => c.UserId);
+
+            builder.Entity<Manga>()
+                .HasOne(m => m.User)
+                .WithMany(u => u.Mangas)
+                .HasForeignKey(m => m.UserId);
         }
     }
 }

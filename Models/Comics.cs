@@ -3,14 +3,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ComicCollector.Models
 {
-    public class Manga
+    public class Comic
     {
         public int Id { get; set; }
 
         [Required]
         public string Title { get; set; }
-
-        public string JapaneseTitle { get; set; }
 
         public string Description { get; set; }
 
@@ -18,17 +16,15 @@ namespace ComicCollector.Models
 
         public DateTime? PublishDate { get; set; }
 
-        public string Author { get; set; }
+        public string Publisher { get; set; }
 
-        public string Status { get; set; }
-
-        public int? Volumes { get; set; }
-
-        public int? Chapters { get; set; }
+        public int? IssueNumber { get; set; }
 
         public string ApiId { get; set; }
 
-        public string Genres { get; set; }
+        public string Characters { get; set; }
+
+        public string Authors { get; set; }
 
         // Relazioni
         public string UserId { get; set; }

@@ -1,0 +1,83 @@
+﻿@page
+@model ComicCollector.Pages.Mangas.IndexModel
+@{
+    ViewData["Title"] = "My Manga";
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-5 fw-bold">La mia Collezione di Manga</h1>
+        <a asp-page="./Search" class="btn btn-primary">
+            <i class="bi bi-search me-1"></i> Cerca nuovi manga
+        </a>
+    </div>
+
+    @if (!Model.Mangas.Any())
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-book" style="font-size: 4rem; color: #ccc;"></i>
+            <h2 class="mt-3">Nessun manga nella tua collezione</h2>
+            <p class="lead">Inizia a cercare e aggiungere manga alla tua collezione.</p>
+            <a asp-page="./Search" class="btn btn-primary btn-lg mt-3">Cerca Manga</a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-3 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Filtri</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="get">
+                            <div class="mb-3">
+                                <label for="searchTerm" class="form-label">Cerca</label>
+                                <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.SearchTerm">
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="favoritesOnly" name="favoritesOnly" value="true" @(Model.FavoritesOnly ? "checked" : "")>
+                                    <label class="form-check-label" for="favoritesOnly">
+                                        Solo preferiti
+                                    </label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Applica Filtri</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-9">
+                <div class="collection-grid">
+                    @foreach (var manga in Model.Mangas)
+                    {
+                        <div class="collection-item">
+                            <a asp-page="./Details" asp-route-id="@manga.Id" class="text-decoration-none text-dark">
+                                @if (!string.IsNullOrEmpty(manga.CoverImageUrl))
+                                {
+                                    <img src="@manga.CoverImageUrl" class="collection-cover" alt="@manga.Title">
+                                }
+                                else
+                                {
+                                    <div class="collection-cover bg-secondary d-flex align-items-center justify-content-center">
+                                        <i class="bi bi-book" style="font-size: 2rem; color: white;"></i>
+                                    </div>
+                                }
+                                <div class="collection-details">
+                                    <h5 class="collection-title">@manga.Title</h5>
+                                    <p class="text-muted small mb-2">@(string.IsNullOrEmpty(manga.Author) ? "Unknown Author" : manga.Author)</p>
+                                    @if (manga.IsFavorite)
+                                    {
+                                        <span class="text-danger"><i class="bi bi-heart-fill"></i></span>
+                                    }
+                                </div>
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>

@@ -1,8 +1,46 @@
 ﻿@page
-@model ComicCollector.Pages.IndexModel
+@model IndexModel
 @{
     ViewData["Title"] = "Home Page";
 }
 
-<h1>Welcome to ComicCollector</h1>
-<p>This is your home page. Start building your application from here!</p>
+<div class="text-center">
+    <div class="p-5 mb-4 bg-light rounded-3">
+        <div class="container-fluid py-5">
+            <h1 class="display-4 fw-bold">Comic Collector</h1>
+            <p class="fs-4">Organizza la tua collezione di fumetti e manga in un unico posto.</p>
+            <p class="lead mb-4">Trova, cataloga e gestisci i tuoi fumetti e manga preferiti grazie alle API di ComicVine e MyAnimeList.</p>
+            @if (!User.Identity.IsAuthenticated)
+            {
+                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                    <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-primary btn-lg px-4 gap-3">Registrati</a>
+                    <a asp-area="Identity" asp-page="/Account/Login" class="btn btn-outline-secondary btn-lg px-4">Accedi</a>
+                </div>
+            }
+            else
+            {
+                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                    <a asp-page="/Comics/Search" class="btn btn-primary btn-lg px-4 gap-3">Cerca Fumetti</a>
+                    <a asp-page="/Mangas/Search" class="btn btn-success btn-lg px-4">Cerca Manga</a>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="row align-items-md-stretch">
+        <div class="col-md-6">
+            <div class="h-100 p-5 text-white bg-dark rounded-3">
+                <h2>Fumetti</h2>
+                <p>Accedi a migliaia di fumetti grazie all'API di ComicVine. Trova le tue serie preferite, salvale nella tua collezione personale e tieni traccia di cosa hai letto.</p>
+                <img src="~/images/comics.jpg" class="img-fluid rounded mb-3" alt="Comics" style="max-height: 200px;">
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="h-100 p-5 bg-light border rounded-3">
+                <h2>Manga</h2>
+                <p>Esplora l'enorme database di MyAnimeList per trovare i tuoi manga preferiti. Organizzali nella tua collezione personale e segui i tuoi progressi di lettura.</p>
+                <img src="~/images/manga.jpg" class="img-fluid rounded mb-3" alt="Manga" style="max-height: 200px;">
+            </div>
+        </div>
+    </div>
+</div>

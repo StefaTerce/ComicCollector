@@ -1,0 +1,87 @@
+﻿@page
+@model ComicCollector.Pages.Comics.DetailsModel
+@{
+    ViewData["Title"] = Model.Comic.Title;
+}
+
+<div class="container py-4">
+    <div class="mb-4">
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Torna alla collezione
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            @if (!string.IsNullOrEmpty(Model.Comic.CoverImageUrl))
+            {
+                <img src="@Model.Comic.CoverImageUrl" class="img-fluid rounded comic-cover mb-4" alt="@Model.Comic.Title">
+            }
+            else
+            {
+                <div class="bg-secondary text-white d-flex align-items-center justify-content-center rounded comic-cover mb-4">
+                    <i class="bi bi-book" style="font-size: 5rem;"></i>
+                </div>
+            }
+
+            <div class="d-flex gap-2 mb-4">
+                <form method="post" asp-page-handler="ToggleFavorite">
+                    <input type="hidden" name="id" value="@Model.Comic.Id" />
+                    <button type="submit" class="btn @(Model.Comic.IsFavorite ? "btn-danger" : "btn-outline-danger")">
+                        <i class="bi @(Model.Comic.IsFavorite ? "bi-heart-fill" : "bi-heart")"></i>
+                        @(Model.Comic.IsFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti")
+                    </button>
+                </form>
+
+                <form method="post" asp-page-handler="Delete" onsubmit="return confirm('Sei sicuro di voler rimuovere questo fumetto dalla tua collezione?');">
+                    <input type="hidden" name="id" value="@Model.Comic.Id" />
+                    <button type="submit" class="btn btn-outline-dark">
+                        <i class="bi bi-trash me-1"></i> Rimuovi
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <h1 class="display-5 fw-bold mb-3">@Model.Comic.Title</h1>
+
+            <div class="mb-4">
+                @if (!string.IsNullOrEmpty(Model.Comic.Authors))
+                {
+                    <p class="mb-1"><strong>Autori:</strong> @Model.Comic.Authors</p>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.Comic.Publisher))
+                {
+                    <p class="mb-1"><strong>Editore:</strong> @Model.Comic.Publisher</p>
+                }
+
+                @if (Model.Comic.IssueNumber.HasValue)
+                {
+                    <p class="mb-1"><strong>Numero:</strong> @Model.Comic.IssueNumber</p>
+                }
+
+                @if (Model.Comic.PublishDate.HasValue)
+                {
+                    <p class="mb-1"><strong>Data di pubblicazione:</strong> @Model.Comic.PublishDate.Value.ToString("d MMMM yyyy")</p>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.Comic.Description))
+            {
+                <div class="mb-4">
+                    <h5>Descrizione</h5>
+                    <p>@Model.Comic.Description</p>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(Model.Comic.Characters))
+            {
+                <div class="mb-4">
+                    <h5>Personaggi</h5>
+                    <p>@Model.Comic.Characters</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
