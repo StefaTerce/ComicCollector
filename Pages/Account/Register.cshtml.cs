@@ -25,7 +25,8 @@ namespace ComicCollector.Pages.Account
         [BindProperty]
         public InputModel Input { get; set; }
 
-        public string ReturnUrl { get; set; }
+        // IMPORTANTE: Non usiamo BindProperty per evitare validazioni
+        // public string ReturnUrl { get; set; }
 
         public class InputModel
         {
@@ -56,7 +57,8 @@ namespace ComicCollector.Pages.Account
 
         public void OnGet(string returnUrl = null)
         {
-            ReturnUrl = returnUrl ?? Url.Content("~/");
+            // Salviamo il returnUrl in ViewData anziché nella proprietà
+            ViewData["ReturnUrl"] = returnUrl ?? Url.Content("~/");
         }
 
         public async Task<IActionResult> OnPostAsync(string returnUrl = null)
@@ -93,6 +95,7 @@ namespace ComicCollector.Pages.Account
             }
 
             // If we got this far, something failed, redisplay form
+            ViewData["ReturnUrl"] = returnUrl;
             return Page();
         }
     }

@@ -2,6 +2,7 @@
 @model ComicCollector.Pages.Account.RegisterModel
 @{
     ViewData["Title"] = "Registrati";
+    var returnUrl = ViewData["ReturnUrl"]?.ToString() ?? "/";
 }
 
 <h1>@ViewData["Title"]</h1>
@@ -12,6 +13,7 @@
             <h4>Crea un nuovo account utente</h4>
             <hr />
             <div asp-validation-summary="All" class="text-danger"></div>
+            <!-- Passa returnUrl come parametro di query e non come campo del form -->
             <div class="form-group">
                 <label asp-for="Input.FirstName"></label>
                 <input asp-for="Input.FirstName" class="form-control" />
@@ -37,7 +39,7 @@
                 <input asp-for="Input.ConfirmPassword" class="form-control" type="password" />
                 <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
             </div>
-            <button type="submit" class="btn btn-primary">Registrati</button>
+            <button type="submit" class="btn btn-primary" asp-route-returnUrl="@returnUrl">Registrati</button>
         </form>
     </div>
 </div>

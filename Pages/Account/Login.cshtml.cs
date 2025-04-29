@@ -21,9 +21,6 @@ namespace ComicCollector.Pages.Account
         [BindProperty]
         public InputModel Input { get; set; }
 
-        // Non bindato come BindProperty
-        public string ReturnUrl { get; set; }
-
         [TempData]
         public string ErrorMessage { get; set; }
 
@@ -41,6 +38,9 @@ namespace ComicCollector.Pages.Account
 
             [Display(Name = "Ricordami")]
             public bool RememberMe { get; set; }
+
+            // Aggiungiamo ReturnUrl come parte del form, ma non è richiesto
+            public string ReturnUrl { get; set; }
         }
 
         public async Task OnGetAsync(string returnUrl = null)
@@ -50,17 +50,24 @@ namespace ComicCollector.Pages.Account
                 ModelState.AddModelError(string.Empty, ErrorMessage);
             }
 
-            // Impostiamo il ReturnUrl come proprietà del modello
-            ReturnUrl = returnUrl ?? Url.Content("~/");
+            Input = new InputModel
+            {
+                // Passa il returnUrl al modello come parte dell'inizializzazione
+                ReturnUrl = returnUrl ?? Url.Content("~/")
+            };
 
             // Clear the existing external cookie
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
         }
 
-        public async Task<IActionResult> OnPostAsync(string returnUrl = null)
+        public async Task<IActionResult> OnPostAsync()
         {
-            // Usiamo un parametro del metodo invece della proprietà bindabile
-            returnUrl ??= Url.Content("~/");
+            // Assicuriamoci che ReturnUrl sia sempre un valore valido
+            string returnUrl = Input.ReturnUrl;
+            if (string.IsNullOrEmpty(returnUrl))
+            {
+                returnUrl = Url.Content("~/");
+            }
 
             if (ModelState.IsValid)
             {
@@ -72,7 +79,7 @@ namespace ComicCollector.Pages.Account
                 }
                 if (result.RequiresTwoFactor)
                 {
-                    return RedirectToPage("./LoginWith2fa", new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
+                    return RedirectToPage("./LoginWith2fa", new { RememberMe = Input.RememberMe });
                 }
                 if (result.IsLockedOut)
                 {
