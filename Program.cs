@@ -2,40 +2,43 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ComicCollector.Data;
 using ComicCollector.Models;
-using ComicCollector.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Aggiungi servizi al container.
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ??
-                       throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-
+// Add services to the container.
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString, sqlServerOptions =>
-        sqlServerOptions.EnableRetryOnFailure()));
+    options.UseSqlServer(connectionString));
+builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// Rimuovi questa riga che causa errore
-// builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+// Add Identity
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    options.SignIn.RequireConfirmedAccount = false;
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Password.RequiredLength = 8;
+})
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
 
-builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddRoles<IdentityRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>();
+// Configure cookie settings
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Account/Login";
+    options.AccessDeniedPath = "/Account/AccessDenied";
+});
 
 builder.Services.AddRazorPages();
-builder.Services.AddControllersWithViews();
-
-// Registra i servizi API
-builder.Services.AddHttpClient<ComicVineService>();
-builder.Services.AddHttpClient<MyAnimeListService>();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseDeveloperExceptionPage();
-    // Rimuovi questa riga che causa errore
-    // app.UseMigrationsEndPoint();
+    app.UseMigrationsEndPoint();
 }
 else
 {
@@ -52,46 +55,16 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapRazorPages();
-app.MapControllers();
 
-// Creazione ruoli e admin user all'avvio
+// Seed admin user
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
-        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-
-        // Crea ruoli se non esistono
-        if (!await roleManager.RoleExistsAsync("Admin"))
-        {
-            await roleManager.CreateAsync(new IdentityRole("Admin"));
-        }
-        if (!await roleManager.RoleExistsAsync("User"))
-        {
-            await roleManager.CreateAsync(new IdentityRole("User"));
-        }
-
-        // Crea utente admin se non esiste
-        var adminUser = await userManager.FindByEmailAsync("admin@comicollector.com");
-        if (adminUser == null)
-        {
-            adminUser = new ApplicationUser
-            {
-                UserName = "admin@comicollector.com",
-                Email = "admin@comicollector.com",
-                EmailConfirmed = true,
-                FirstName = "Admin",
-                LastName = "User"
-            };
-
-            var result = await userManager.CreateAsync(adminUser, "Admin123!");
-            if (result.Succeeded)
-            {
-                await userManager.AddToRoleAsync(adminUser, "Admin");
-            }
-        }
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+        SeedData.Initialize(userManager, roleManager).Wait();
     }
     catch (Exception ex)
     {

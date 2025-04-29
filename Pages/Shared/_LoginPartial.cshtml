@@ -6,21 +6,36 @@
 <ul class="navbar-nav">
     @if (SignInManager.IsSignedIn(User))
     {
+        var user = await UserManager.GetUserAsync(User);
         <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-person-circle me-1"></i>
+            <a class="nav-link dropdown-toggle profile-avatar" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <div class="profile-circle">
+                    @(user?.FirstName?.Substring(0, 1).ToUpper() ?? "U")@(user?.LastName?.Substring(0, 1).ToUpper() ?? "")
+                </div>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+                <li class="dropdown-header text-center">
+                    <div class="profile-circle-large mx-auto mb-2">
+                        @(user?.FirstName?.Substring(0, 1).ToUpper() ?? "U")@(user?.LastName?.Substring(0, 1).ToUpper() ?? "")
+                    </div>
+                    <h6 class="mb-0">@(user?.FirstName) @(user?.LastName)</h6>
+                    <span class="text-muted small">@(user?.Email)</span>
+                </li>
+                <li><hr class="dropdown-divider"></li>
                 @if (User.IsInRole("Admin"))
                 {
-                    <span class="badge bg-danger me-1">Admin</span>
+                    <li>
+                        <a class="dropdown-item" asp-area="" asp-page="/Admin/UserManagement">
+                            <i class="bi bi-people"></i> Gestione Utenti
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
                 }
-                @UserManager.GetUserAsync(User).Result.FirstName
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                <li><a class="dropdown-item" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">Profile</a></li>
-                <li><hr class="dropdown-divider"></li>
                 <li>
-                    <form class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/Index", new { area = "" })">
-                        <button type="submit" class="dropdown-item">Logout</button>
+                    <form class="form-inline dropdown-item-text" asp-area="" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/", new { area = "" })" method="post">
+                        <button type="submit" class="btn btn-link text-danger p-0">
+                            <i class="bi bi-box-arrow-right"></i> Esci
+                        </button>
                     </form>
                 </li>
             </ul>
@@ -29,10 +44,10 @@
     else
     {
         <li class="nav-item">
-            <a class="nav-link" asp-area="Identity" asp-page="/Account/Register">Register</a>
+            <a class="nav-link text-dark" asp-area="" asp-page="/Account/Register">Registrati</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" asp-area="Identity" asp-page="/Account/Login">Login</a>
+            <a class="nav-link text-dark" asp-area="" asp-page="/Account/Login">Login</a>
         </li>
     }
 </ul>

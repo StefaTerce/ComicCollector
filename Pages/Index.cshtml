@@ -1,46 +1,74 @@
 ﻿@page
 @model IndexModel
+@inject Microsoft.AspNetCore.Identity.UserManager<ComicCollector.Models.ApplicationUser> UserManager
 @{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Home page";
+    var user = await UserManager.GetUserAsync(User);
 }
 
 <div class="text-center">
-    <div class="p-5 mb-4 bg-light rounded-3">
-        <div class="container-fluid py-5">
-            <h1 class="display-4 fw-bold">Comic Collector</h1>
-            <p class="fs-4">Organizza la tua collezione di fumetti e manga in un unico posto.</p>
-            <p class="lead mb-4">Trova, cataloga e gestisci i tuoi fumetti e manga preferiti grazie alle API di ComicVine e MyAnimeList.</p>
-            @if (!User.Identity.IsAuthenticated)
-            {
-                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-                    <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-primary btn-lg px-4 gap-3">Registrati</a>
-                    <a asp-area="Identity" asp-page="/Account/Login" class="btn btn-outline-secondary btn-lg px-4">Accedi</a>
-                </div>
-            }
-            else
-            {
-                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-                    <a asp-page="/Comics/Search" class="btn btn-primary btn-lg px-4 gap-3">Cerca Fumetti</a>
-                    <a asp-page="/Mangas/Search" class="btn btn-success btn-lg px-4">Cerca Manga</a>
-                </div>
-            }
-        </div>
-    </div>
+    <h1 class="display-4">Benvenuto in Comic Collector</h1>
+    @if (User.Identity.IsAuthenticated)
+    {
+        <p>Ciao @user?.FirstName @user?.LastName, bentornato nella tua piattaforma preferita per collezionare fumetti!</p>
+    }
+    else
+    {
+        <p>La tua piattaforma per collezionare e organizzare i tuoi fumetti preferiti.</p>
+    }
+</div>
 
-    <div class="row align-items-md-stretch">
-        <div class="col-md-6">
-            <div class="h-100 p-5 text-white bg-dark rounded-3">
-                <h2>Fumetti</h2>
-                <p>Accedi a migliaia di fumetti grazie all'API di ComicVine. Trova le tue serie preferite, salvale nella tua collezione personale e tieni traccia di cosa hai letto.</p>
-                <img src="~/images/comics.jpg" class="img-fluid rounded mb-3" alt="Comics" style="max-height: 200px;">
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>La tua collezione</h5>
+            </div>
+            <div class="card-body">
+                @if (User.Identity.IsAuthenticated)
+                {
+                    <p>Accedi alla tua collezione personale e gestisci i tuoi fumetti.</p>
+                    <a href="#" class="btn btn-primary">Vai alla collezione</a>
+                }
+                else
+                {
+                    <p>Accedi o registrati per iniziare a creare la tua collezione di fumetti.</p>
+                    <a asp-page="/Account/Login" class="btn btn-primary">Accedi</a>
+                    <a asp-page="/Account/Register" class="btn btn-outline-primary ms-2">Registrati</a>
+                }
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="h-100 p-5 bg-light border rounded-3">
-                <h2>Manga</h2>
-                <p>Esplora l'enorme database di MyAnimeList per trovare i tuoi manga preferiti. Organizzali nella tua collezione personale e segui i tuoi progressi di lettura.</p>
-                <img src="~/images/manga.jpg" class="img-fluid rounded mb-3" alt="Manga" style="max-height: 200px;">
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Funzionalità principali</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">Cataloga i tuoi fumetti</li>
+                    <li class="list-group-item">Tieni traccia delle tue serie preferite</li>
+                    <li class="list-group-item">Scopri nuovi titoli</li>
+                    <li class="list-group-item">Organizza la tua collezione</li>
+                </ul>
             </div>
         </div>
     </div>
 </div>
+
+@if (User.IsInRole("Admin"))
+{
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5>Pannello Amministratore</h5>
+                </div>
+                <div class="card-body">
+                    <p>In quanto amministratore, hai accesso a funzionalità aggiuntive:</p>
+                    <a asp-page="/Admin/UserManagement" class="btn btn-outline-primary">Gestione Utenti</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
