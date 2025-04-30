@@ -25,9 +25,6 @@ namespace ComicCollector.Pages.Account
         [BindProperty]
         public InputModel Input { get; set; }
 
-        // IMPORTANTE: Non usiamo BindProperty per evitare validazioni
-        // public string ReturnUrl { get; set; }
-
         public class InputModel
         {
             [Required(ErrorMessage = "Il nome è richiesto")]
@@ -55,15 +52,15 @@ namespace ComicCollector.Pages.Account
             public string ConfirmPassword { get; set; }
         }
 
-        public void OnGet(string returnUrl = null)
+        public void OnGet()
         {
-            // Salviamo il returnUrl in ViewData anziché nella proprietà
-            ViewData["ReturnUrl"] = returnUrl ?? Url.Content("~/");
+            // Nessuna logica necessaria qui
         }
 
-        public async Task<IActionResult> OnPostAsync(string returnUrl = null)
+        public async Task<IActionResult> OnPostAsync()
         {
-            returnUrl ??= Url.Content("~/");
+            // Reindirizza sempre alla homepage dopo la registrazione
+            string returnUrl = "/";
 
             if (ModelState.IsValid)
             {
@@ -72,7 +69,8 @@ namespace ComicCollector.Pages.Account
                     UserName = Input.Email,
                     Email = Input.Email,
                     FirstName = Input.FirstName,
-                    LastName = Input.LastName
+                    LastName = Input.LastName,
+                    EmailConfirmed = true
                 };
 
                 var result = await _userManager.CreateAsync(user, Input.Password);
@@ -85,7 +83,7 @@ namespace ComicCollector.Pages.Account
                     await _userManager.AddToRoleAsync(user, "User");
 
                     await _signInManager.SignInAsync(user, isPersistent: false);
-                    return LocalRedirect(returnUrl);
+                    return Redirect(returnUrl);
                 }
 
                 foreach (var error in result.Errors)
@@ -95,7 +93,6 @@ namespace ComicCollector.Pages.Account
             }
 
             // If we got this far, something failed, redisplay form
-            ViewData["ReturnUrl"] = returnUrl;
             return Page();
         }
     }

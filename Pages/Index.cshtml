@@ -6,69 +6,96 @@
     var user = await UserManager.GetUserAsync(User);
 }
 
-<div class="text-center">
-    <h1 class="display-4">Benvenuto in Comic Collector</h1>
-    @if (User.Identity.IsAuthenticated)
-    {
-        <p>Ciao @user?.FirstName @user?.LastName, bentornato nella tua piattaforma preferita per collezionare fumetti!</p>
-    }
-    else
-    {
-        <p>La tua piattaforma per collezionare e organizzare i tuoi fumetti preferiti.</p>
-    }
-</div>
-
-<div class="row mt-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>La tua collezione</h5>
-            </div>
-            <div class="card-body">
-                @if (User.Identity.IsAuthenticated)
-                {
-                    <p>Accedi alla tua collezione personale e gestisci i tuoi fumetti.</p>
-                    <a href="#" class="btn btn-primary">Vai alla collezione</a>
-                }
-                else
-                {
-                    <p>Accedi o registrati per iniziare a creare la tua collezione di fumetti.</p>
-                    <a asp-page="/Account/Login" class="btn btn-primary">Accedi</a>
-                    <a asp-page="/Account/Register" class="btn btn-outline-primary ms-2">Registrati</a>
-                }
-            </div>
-        </div>
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-primary mb-3">Comic Collector</h1>
+        <p class="lead fs-4">
+            @if (User.Identity.IsAuthenticated)
+            {
+                <span>Ciao <strong>@user?.FirstName @user?.LastName</strong>, bentornato nella tua piattaforma preferita per collezionare fumetti!</span>
+            }
+            else
+            {
+                <span>La tua piattaforma per collezionare e organizzare i tuoi fumetti preferiti.</span>
+            }
+        </p>
     </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Funzionalità principali</h5>
-            </div>
-            <div class="card-body">
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">Cataloga i tuoi fumetti</li>
-                    <li class="list-group-item">Tieni traccia delle tue serie preferite</li>
-                    <li class="list-group-item">Scopri nuovi titoli</li>
-                    <li class="list-group-item">Organizza la tua collezione</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
 
-@if (User.IsInRole("Admin"))
-{
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="card">
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm border-0">
                 <div class="card-header bg-primary text-white">
-                    <h5>Pannello Amministratore</h5>
+                    <h5 class="mb-0"><i class="bi bi-collection me-2"></i>La tua collezione</h5>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    @if (User.Identity.IsAuthenticated)
+                    {
+                        <p class="card-text flex-grow-1">Accedi alla tua collezione personale e gestisci i tuoi fumetti. Organizza per serie, autore o editore.</p>
+                        <a href="#" class="btn btn-primary">
+                            <i class="bi bi-journal-bookmark me-2"></i>Vai alla collezione
+                        </a>
+                    }
+                    else
+                    {
+                        <p class="card-text flex-grow-1">Accedi o registrati per iniziare a creare la tua collezione di fumetti e tenere traccia della tua collezione.</p>
+                        <div>
+                            <a asp-page="/Account/Login" class="btn btn-primary">
+                                <i class="bi bi-box-arrow-in-right me-2"></i>Accedi
+                            </a>
+                            <a asp-page="/Account/Register" class="btn btn-outline-primary ms-2">
+                                <i class="bi bi-person-plus me-2"></i>Registrati
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-stars me-2"></i>Funzionalità principali</h5>
                 </div>
                 <div class="card-body">
-                    <p>In quanto amministratore, hai accesso a funzionalità aggiuntive:</p>
-                    <a asp-page="/Admin/UserManagement" class="btn btn-outline-primary">Gestione Utenti</a>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex align-items-center border-0">
+                            <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
+                            Cataloga i tuoi fumetti
+                        </li>
+                        <li class="list-group-item d-flex align-items-center border-0">
+                            <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
+                            Tieni traccia delle tue serie preferite
+                        </li>
+                        <li class="list-group-item d-flex align-items-center border-0">
+                            <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
+                            Scopri nuovi titoli
+                        </li>
+                        <li class="list-group-item d-flex align-items-center border-0">
+                            <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
+                            Organizza la tua collezione
+                        </li>
+                    </ul>
                 </div>
             </div>
         </div>
     </div>
-}
+
+    @if (User.IsInRole("Admin"))
+    {
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card shadow-sm border-0 bg-light">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-shield-lock me-2"></i>Pannello Amministratore</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">In quanto amministratore, hai accesso a funzionalità aggiuntive per gestire l'applicazione:</p>
+                        <a asp-page="/Admin/UserManagement" class="btn btn-outline-primary">
+                            <i class="bi bi-people me-2"></i>Gestione Utenti
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>

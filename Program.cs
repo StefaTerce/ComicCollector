@@ -64,13 +64,59 @@ using (var scope = app.Services.CreateScope())
     {
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-        SeedData.Initialize(userManager, roleManager).Wait();
+
+        // Assicurati che il ruolo Admin esista
+        if (!await roleManager.RoleExistsAsync("Admin"))
+        {
+            await roleManager.CreateAsync(new IdentityRole("Admin"));
+        }
+
+        // Assicurati che il ruolo User esista
+        if (!await roleManager.RoleExistsAsync("User"))
+        {
+            await roleManager.CreateAsync(new IdentityRole("User"));
+        }
+
+        // Crea l'utente Admin se non esiste
+        var adminUser = await userManager.FindByEmailAsync("admin@example.com");
+        if (adminUser == null)
+        {
+            adminUser = new ApplicationUser
+            {
+                UserName = "admin@example.com",
+                Email = "admin@example.com",
+                FirstName = "Admin",
+                LastName = "User",
+                EmailConfirmed = true
+            };
+
+            await userManager.CreateAsync(adminUser, "Admin123!");
+            await userManager.AddToRoleAsync(adminUser, "Admin");
+        }
+
+        // Crea l'utente Test se non esiste
+        var testUser = await userManager.FindByEmailAsync("test@example.com");
+        if (testUser == null)
+        {
+            testUser = new ApplicationUser
+            {
+                UserName = "test@example.com",
+                Email = "test@example.com",
+                FirstName = "Utente",
+                LastName = "Test",
+                EmailConfirmed = true
+            };
+
+            await userManager.CreateAsync(testUser, "Test123!");
+            await userManager.AddToRoleAsync(testUser, "User");
+        }
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while seeding the database.");
+        logger.LogError(ex, "Si è verificato un errore durante la creazione degli utenti predefiniti.");
     }
 }
+
 
 app.Run();

@@ -10,11 +10,16 @@ namespace ComicCollector.Pages.Account
     public class LoginModel : PageModel
     {
         private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<LoginModel> _logger;
 
-        public LoginModel(SignInManager<ApplicationUser> signInManager, ILogger<LoginModel> logger)
+        public LoginModel(
+            SignInManager<ApplicationUser> signInManager,
+            UserManager<ApplicationUser> userManager,
+            ILogger<LoginModel> logger)
         {
             _signInManager = signInManager;
+            _userManager = userManager;
             _logger = logger;
         }
 
@@ -38,23 +43,14 @@ namespace ComicCollector.Pages.Account
 
             [Display(Name = "Ricordami")]
             public bool RememberMe { get; set; }
-
-            // Aggiungiamo ReturnUrl come parte del form, ma non è richiesto
-            public string ReturnUrl { get; set; }
         }
 
-        public async Task OnGetAsync(string returnUrl = null)
+        public async Task OnGetAsync()
         {
             if (!string.IsNullOrEmpty(ErrorMessage))
             {
                 ModelState.AddModelError(string.Empty, ErrorMessage);
             }
-
-            Input = new InputModel
-            {
-                // Passa il returnUrl al modello come parte dell'inizializzazione
-                ReturnUrl = returnUrl ?? Url.Content("~/")
-            };
 
             // Clear the existing external cookie
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
@@ -62,12 +58,8 @@ namespace ComicCollector.Pages.Account
 
         public async Task<IActionResult> OnPostAsync()
         {
-            // Assicuriamoci che ReturnUrl sia sempre un valore valido
-            string returnUrl = Input.ReturnUrl;
-            if (string.IsNullOrEmpty(returnUrl))
-            {
-                returnUrl = Url.Content("~/");
-            }
+            // Reindirizza sempre alla homepage dopo il login
+            string returnUrl = "/";
 
             if (ModelState.IsValid)
             {
@@ -75,7 +67,14 @@ namespace ComicCollector.Pages.Account
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User logged in.");
-                    return LocalRedirect(returnUrl);
+
+                    // Aggiungi un account di test se l'utente è admin
+                    if (Input.Email.ToLower() == "admin@example.com")
+                    {
+                        await EnsureTestUserExists();
+                    }
+
+                    return Redirect(returnUrl);
                 }
                 if (result.RequiresTwoFactor)
                 {
@@ -95,6 +94,29 @@ namespace ComicCollector.Pages.Account
 
             // If we got this far, something failed, redisplay form
             return Page();
+        }
+
+        // Metodo per garantire che l'utente di test esista
+        private async Task EnsureTestUserExists()
+        {
+            var testUser = await _userManager.FindByEmailAsync("test@example.com");
+            if (testUser == null)
+            {
+                var user = new ApplicationUser
+                {
+                    UserName = "test@example.com",
+                    Email = "test@example.com",
+                    FirstName = "Utente",
+                    LastName = "Test",
+                    EmailConfirmed = true
+                };
+
+                var result = await _userManager.CreateAsync(user, "Test123!");
+                if (result.Succeeded)
+                {
+                    await _userManager.AddToRoleAsync(user, "User");
+                }
+            }
         }
     }
 }

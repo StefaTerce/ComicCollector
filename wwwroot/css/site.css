@@ -1,4 +1,36 @@
-/* Aggiungi questi stili per l'avatar del profilo utente */
+html {
+    font-size: 14px;
+}
+
+@media (min-width: 768px) {
+    html {
+        font-size: 16px;
+    }
+}
+
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    margin-bottom: 60px;
+    background-color: #f8f9fa;
+}
+
+/* Stile migliorato per la navbar */
+.navbar {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    background-color: #ffffff !important;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    color: #4285f4 !important;
+    font-size: 1.4rem;
+}
+
+/* Stile per avatar profilo */
 .profile-circle {
     width: 36px;
     height: 36px;
@@ -9,6 +41,7 @@
     align-items: center;
     justify-content: center;
     font-weight: 500;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
 }
 
 .profile-circle-large {
@@ -22,13 +55,14 @@
     justify-content: center;
     font-weight: 500;
     font-size: 1.5rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    margin: 0 auto;
 }
 
 .dropdown-header {
     padding: 1rem;
 }
 
-/* Rimuove lo sfondo dal dropdown-toggle quando è attivo */
 .profile-avatar::after {
     display: none;
 }
@@ -36,3 +70,69 @@
 .profile-avatar {
     padding: 0.25rem !important;
 }
+
+/* Stile migliorato per card e form */
+.card {
+    border-radius: 10px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+    .card:hover {
+        transform: translateY(-5px);
+    }
+
+.card-header {
+    font-weight: 600;
+    padding: 1rem;
+}
+
+.btn-primary {
+    background-color: #4285f4;
+    border-color: #4285f4;
+}
+
+    .btn-primary:hover, .btn-primary:focus {
+        background-color: #3367d6;
+        border-color: #3367d6;
+    }
+
+.btn-outline-primary {
+    color: #4285f4;
+    border-color: #4285f4;
+}
+
+    .btn-outline-primary:hover, .btn-outline-primary:focus {
+        background-color: #4285f4;
+        border-color: #4285f4;
+    }
+
+/* Footer migliorato */
+.footer {
+    background-color: #ffffff;
+    padding: 1.5rem 0;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Animazione per le icone nei form */
+.input-group-text i {
+    transition: transform 0.3s ease;
+}
+
+.input-group:focus-within .input-group-text i {
+    transform: scale(1.2);
+    color: #4285f4;
+}
+
+/* Stile per lista funzionalità */
+.list-group-item {
+    padding: 1rem 1.25rem;
+}
+
+    .list-group-item i {
+        transition: transform 0.3s ease;
+    }
+
+    .list-group-item:hover i {
+        transform: scale(1.2);
+    }
