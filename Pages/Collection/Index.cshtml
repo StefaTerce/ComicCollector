@@ -1,0 +1,422 @@
+﻿@page
+@model ComicCollector.Pages.Collection.IndexModel
+@using ComicCollector.Models
+@{
+    ViewData["Title"] = "La mia collezione";
+}
+
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0"><i class="bi bi-collection me-2"></i>La mia collezione</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addComicModal">
+            <i class="bi bi-plus-lg me-2"></i>Aggiungi fumetto
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        var statusClass = Model.IsError ? "danger" : "success";
+        <div class="alert alert-@statusClass alert-dismissible fade show mb-4" role="alert">
+            @Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card bg-primary text-white h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title">Totale fumetti</h5>
+                        <i class="bi bi-journal-richtext fs-1"></i>
+                    </div>
+                    <h2 class="mt-3">@Model.UserComics.Count</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card bg-success text-white h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title">Serie diverse</h5>
+                        <i class="bi bi-journals fs-1"></i>
+                    </div>
+                    <h2 class="mt-3">@Model.SeriesCount</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card bg-warning text-white h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title">Autori</h5>
+                        <i class="bi bi-people-fill fs-1"></i>
+                    </div>
+                    <h2 class="mt-3">@Model.AuthorsCount</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card bg-info text-white h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title">Editori</h5>
+                        <i class="bi bi-building fs-1"></i>
+                    </div>
+                    <h2 class="mt-3">@Model.PublishersCount</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtri e ricerca -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="searchComics" placeholder="Cerca fumetti...">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="seriesFilter">
+                        <option value="">Tutte le serie</option>
+                        @foreach (var series in Model.AllSeries)
+                        {
+                            <option value="@series">@series</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="publisherFilter">
+                        <option value="">Tutti gli editori</option>
+                        @foreach (var publisher in Model.AllPublishers)
+                        {
+                            <option value="@publisher">@publisher</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline-secondary w-100" id="resetFilters">Reset</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Griglia dei fumetti -->
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4" id="comicsGrid">
+        @foreach (var comic in Model.UserComics)
+        {
+            <div class="col comic-item"
+                 data-title="@comic.Title.ToLower()"
+                 data-series="@comic.Series.ToLower()"
+                 data-publisher="@comic.Publisher.ToLower()">
+                <div class="card h-100 shadow-sm">
+                    <div class="position-relative">
+                        @if (!string.IsNullOrEmpty(comic.CoverImage))
+                        {
+                            <img src="@comic.CoverImage" class="card-img-top" alt="@comic.Title" style="height: 200px; object-fit: cover;">
+                        }
+                        else
+                        {
+                            <div class="bg-light text-center py-5" style="height: 200px;">
+                                <i class="bi bi-journal-richtext fs-1 text-muted"></i>
+                                <p class="text-muted">No Cover</p>
+                            </div>
+                        }
+                        <span class="position-absolute top-0 end-0 badge bg-primary m-2">N. @comic.IssueNumber</span>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title mb-1">@comic.Title</h5>
+                        <p class="card-text text-muted small mb-2">@comic.Series</p>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-secondary">@comic.Publisher</span>
+                            <small class="text-muted">@comic.PublicationDate.ToString("MM/yyyy")</small>
+                        </div>
+                        <p class="card-text small text-truncate">@comic.Author</p>
+                    </div>
+                    <div class="card-footer bg-white border-0">
+                        <div class="btn-group w-100">
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewComicModal-@comic.Id">
+                                <i class="bi bi-eye me-1"></i>Dettagli
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteComic('@comic.Id')">
+                                <i class="bi bi-trash me-1"></i>Rimuovi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Dettagli Fumetto -->
+                <div class="modal fade" id="viewComicModal-@comic.Id" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Dettagli fumetto</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        @if (!string.IsNullOrEmpty(comic.CoverImage))
+                                        {
+                                            <img src="@comic.CoverImage" class="img-fluid rounded" alt="@comic.Title">
+                                        }
+                                        else
+                                        {
+                                            <div class="bg-light text-center py-5 rounded">
+                                                <i class="bi bi-journal-richtext fs-1 text-muted"></i>
+                                                <p class="text-muted">No Cover</p>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="col-md-8">
+                                        <h3>@comic.Title</h3>
+                                        <p class="text-muted">@comic.Series #@comic.IssueNumber</p>
+                                        <dl class="row">
+                                            <dt class="col-sm-4">Autore</dt>
+                                            <dd class="col-sm-8">@comic.Author</dd>
+
+                                            <dt class="col-sm-4">Editore</dt>
+                                            <dd class="col-sm-8">@comic.Publisher</dd>
+
+                                            <dt class="col-sm-4">Data</dt>
+                                            <dd class="col-sm-8">@comic.PublicationDate.ToString("dd/MM/yyyy")</dd>
+
+                                            <dt class="col-sm-4">Pagine</dt>
+                                            <dd class="col-sm-8">@comic.PageCount</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <h5>Descrizione</h5>
+                                    <p>@(string.IsNullOrEmpty(comic.Description) ? "Nessuna descrizione disponibile" : comic.Description)</p>
+                                </div>
+
+                                <div class="mt-3">
+                                    <h5>Note personali</h5>
+                                    <p>@(string.IsNullOrEmpty(comic.Notes) ? "Nessuna nota personale" : comic.Notes)</p>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editComicModal-@comic.Id" data-bs-dismiss="modal">
+                                    <i class="bi bi-pencil me-1"></i>Modifica
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Modifica Fumetto -->
+                <div class="modal fade" id="editComicModal-@comic.Id" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="post" asp-page-handler="UpdateComic">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Modifica fumetto</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <input type="hidden" name="ComicId" value="@comic.Id">
+                                    <div class="mb-3">
+                                        <label class="form-label">Titolo</label>
+                                        <input type="text" class="form-control" name="Title" value="@comic.Title" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Serie</label>
+                                        <input type="text" class="form-control" name="Series" value="@comic.Series" required>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Numero</label>
+                                            <input type="number" class="form-control" name="IssueNumber" value="@comic.IssueNumber" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Data pubblicazione</label>
+                                            <input type="date" class="form-control" name="PublicationDate" value="@comic.PublicationDate.ToString("yyyy-MM-dd")" required>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Autore</label>
+                                        <input type="text" class="form-control" name="Author" value="@comic.Author" required>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Editore</label>
+                                            <input type="text" class="form-control" name="Publisher" value="@comic.Publisher" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Numero pagine</label>
+                                            <input type="number" class="form-control" name="PageCount" value="@comic.PageCount">
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">URL Copertina</label>
+                                        <input type="text" class="form-control" name="CoverImage" value="@comic.CoverImage">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Descrizione</label>
+                                        <textarea class="form-control" name="Description" rows="3">@comic.Description</textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Note personali</label>
+                                        <textarea class="form-control" name="Notes" rows="2">@comic.Notes</textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                                    <button type="submit" class="btn btn-primary">Salva modifiche</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (Model.UserComics.Count == 0)
+        {
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-journal-x display-1 text-muted mb-3"></i>
+                        <h3>Nessun fumetto nella collezione</h3>
+                        <p class="text-muted">Crea la tua collezione aggiungendo il tuo primo fumetto!</p>
+                        <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addComicModal">
+                            <i class="bi bi-plus-lg me-2"></i>Aggiungi fumetto
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal per aggiungere un fumetto -->
+<div class="modal fade" id="addComicModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="AddComic">
+                <div class="modal-header">
+                    <h5 class="modal-title">Aggiungi un nuovo fumetto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Titolo</label>
+                        <input type="text" class="form-control" name="Title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Serie</label>
+                        <input type="text" class="form-control" name="Series" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Numero</label>
+                            <input type="number" class="form-control" name="IssueNumber" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Data pubblicazione</label>
+                            <input type="date" class="form-control" name="PublicationDate" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Autore</label>
+                        <input type="text" class="form-control" name="Author" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Editore</label>
+                            <input type="text" class="form-control" name="Publisher" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Numero pagine</label>
+                            <input type="number" class="form-control" name="PageCount">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">URL Copertina</label>
+                        <input type="text" class="form-control" name="CoverImage">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Descrizione</label>
+                        <textarea class="form-control" name="Description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Note personali</label>
+                        <textarea class="form-control" name="Notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Aggiungi fumetto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Form nascosto per eliminazione -->
+<form id="deleteForm" method="post" asp-page-handler="DeleteComic">
+    <input type="hidden" id="comicIdToDelete" name="ComicId" />
+</form>
+
+@section Scripts {
+    <script>
+        // Funzione per eliminare un fumetto
+        function deleteComic(comicId) {
+            if (confirm('Sei sicuro di voler rimuovere questo fumetto dalla tua collezione?')) {
+                document.getElementById('comicIdToDelete').value = comicId;
+                document.getElementById('deleteForm').submit();
+            }
+        }
+
+        // Filtri
+        document.addEventListener('DOMContentLoaded', function () {
+            const searchInput = document.getElementById('searchComics');
+            const seriesSelect = document.getElementById('seriesFilter');
+            const publisherSelect = document.getElementById('publisherFilter');
+            const resetButton = document.getElementById('resetFilters');
+            const comicItems = document.querySelectorAll('.comic-item');
+
+            function applyFilters() {
+                const searchTerm = searchInput.value.toLowerCase();
+                const selectedSeries = seriesSelect.value.toLowerCase();
+                const selectedPublisher = publisherSelect.value.toLowerCase();
+
+                comicItems.forEach(item => {
+                    const title = item.dataset.title;
+                    const series = item.dataset.series;
+                    const publisher = item.dataset.publisher;
+
+                    const matchesSearch = !searchTerm || title.includes(searchTerm);
+                    const matchesSeries = !selectedSeries || series === selectedSeries;
+                    const matchesPublisher = !selectedPublisher || publisher === selectedPublisher;
+
+                    if (matchesSearch && matchesSeries && matchesPublisher) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            }
+
+            searchInput.addEventListener('input', applyFilters);
+            seriesSelect.addEventListener('change', applyFilters);
+            publisherSelect.addEventListener('change', applyFilters);
+
+            resetButton.addEventListener('click', function () {
+                searchInput.value = '';
+                seriesSelect.value = '';
+                publisherSelect.value = '';
+                applyFilters();
+            });
+        });
+    </script>
+}

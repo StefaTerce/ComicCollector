@@ -4,38 +4,143 @@
     ViewData["Title"] = "Gestione Utenti";
 }
 
-<h1>@ViewData["Title"]</h1>
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0"><i class="bi bi-people-fill me-2"></i>Gestione Utenti</h1>
+        <a asp-page="./Dashboard" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left me-2"></i>Torna alla Dashboard
+        </a>
+    </div>
 
-@if (TempData["StatusMessage"] != null)
-{
-    <div class="alert alert-success">@TempData["StatusMessage"]</div>
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        var statusClass = Model.IsError ? "danger" : "success";
+            <div class="alert alert-@statusClass alert-dismissible fade show mb-4" role="alert">
+            @Model.StatusMessage
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">Tutti gli utenti</h5>
+                <div class="input-group" style="max-width: 300px">
+                    <input type="text" class="form-control" placeholder="Cerca utenti..." id="searchUsers">
+                    <button class="btn btn-outline-secondary" type="button">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover" id="usersTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>Ruolo</th>
+                            <th>Data registrazione</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model.Users)
+                        {
+                                <tr>
+                                    <td>@user.FirstName @user.LastName</td>
+                                    <td>@user.Email</td>
+                                    <td>
+                                    @if (await Model.UserManager.IsInRoleAsync(user, "Admin"))
+                                    {
+                                                <span class="badge bg-primary">Admin</span>
+                                    }
+                                    else
+                                    {
+                                                <span class="badge bg-secondary">Utente</span>
+                                    }
+                                    </td>
+                                    <td>@Model.UserRegistrationDates[user.Id]</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editUserModal-@user.Id">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <form method="post" asp-page-handler="DeleteUser" asp-route-userId="@user.Id" onsubmit="return confirm('Sei sicuro di voler eliminare questo utente?');">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+
+                                        <!-- Edit User Modal -->
+                                        <div class="modal fade" id="editUserModal-@user.Id" tabindex="-1" aria-labelledby="editUserModalLabel-@user.Id" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <form method="post" asp-page-handler="EditUser">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title" id="editUserModalLabel-@user.Id">Modifica Utente</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <input type="hidden" name="UserId" value="@user.Id" />
+                                                            <div class="mb-3">
+                                                                <label for="firstName-@user.Id" class="form-label">Nome</label>
+                                                                <input type="text" class="form-control" id="firstName-@user.Id" name="FirstName" value="@user.FirstName" required>
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label for="lastName-@user.Id" class="form-label">Cognome</label>
+                                                                <input type="text" class="form-control" id="lastName-@user.Id" name="LastName" value="@user.LastName" required>
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label for="email-@user.Id" class="form-label">Email</label>
+                                                                <input type="email" class="form-control" id="email-@user.Id" name="Email" value="@user.Email" required>
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input" type="checkbox" id="isAdmin-@user.Id" name="IsAdmin" @(await Model.UserManager.IsInRoleAsync(user, "Admin") ? "checked" : "") />
+                                                                    <label class="form-check-label" for="isAdmin-@user.Id">
+                                                                        Amministratore
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                                                            <button type="submit" class="btn btn-primary">Salva modifiche</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+        <script>
+            // Ricerca semplice per la tabella utenti
+            document.getElementById('searchUsers').addEventListener('keyup', function() {
+                const input = this.value.toLowerCase();
+                const table = document.getElementById('usersTable');
+                const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+
+                for (let i = 0; i < rows.length; i++) {
+                    const nameCol = rows[i].getElementsByTagName('td')[0].textContent.toLowerCase();
+                    const emailCol = rows[i].getElementsByTagName('td')[1].textContent.toLowerCase();
+
+                    if (nameCol.includes(input) || emailCol.includes(input)) {
+                        rows[i].style.display = '';
+                    } else {
+                        rows[i].style.display = 'none';
+                    }
+                }
+            });
+        </script>
 }
-
-<table class="table">
-    <thead>
-        <tr>
-            <th>Email</th>
-            <th>Nome</th>
-            <th>Cognome</th>
-            <th>Ruoli</th>
-            <th>Azioni</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var user in Model.Users)
-        {
-            <tr>
-                <td>@user.Email</td>
-                <td>@user.FirstName</td>
-                <td>@user.LastName</td>
-                <td>@string.Join(", ", user.Roles)</td>
-                <td>
-                    <a asp-page="./EditUser" asp-route-id="@user.Id" class="btn btn-primary btn-sm">Modifica</a>
-                    <form method="post" asp-page-handler="DeleteUser" asp-route-id="@user.Id" style="display: inline;">
-                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Sei sicuro di voler eliminare questo utente?');">Elimina</button>
-                    </form>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>

@@ -1,41 +1,86 @@
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using ComicCollector.Data;
 using ComicCollector.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+// Aggiungi servizi al container
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ComicCollector.Services.SessionInfoService>();
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
+
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// Add Identity
+// Configura Identity con impostazioni di sicurezza e sessione
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
-    options.SignIn.RequireConfirmedAccount = false;
+    // Impostazioni password
     options.Password.RequireDigit = true;
-    options.Password.RequireLowercase = true;
-    options.Password.RequireUppercase = true;
-    options.Password.RequireNonAlphanumeric = true;
     options.Password.RequiredLength = 8;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireLowercase = true;
+
+    // Impostazioni blocco account
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+    options.Lockout.MaxFailedAccessAttempts = 5;
+
+    // Impostazioni utente
+    options.User.RequireUniqueEmail = true;
+    options.SignIn.RequireConfirmedEmail = false;
 })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
-// Configure cookie settings
+// Configura sessione
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromHours(2);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+});
+
+// Configura cookie policy
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
-    options.AccessDeniedPath = "/Account/AccessDenied";
+    options.LogoutPath = "/Account/Logout";
+    options.AccessDeniedPath = "/Account/Login"; // Reindirizza a Login invece di Access Denied
+    options.SlidingExpiration = true;
+    options.ExpireTimeSpan = TimeSpan.FromHours(2);
 });
 
-builder.Services.AddRazorPages();
+// Aggiungi policy di autorizzazione
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("RequireUserRole", policy => policy.RequireRole("User", "Admin"));
+});
+
+// Configura tutte le pagine per richiedere autenticazione per impostazione predefinita
+builder.Services.AddRazorPages(options =>
+{
+    options.Conventions.AuthorizeFolder("/");
+    options.Conventions.AllowAnonymousToPage("/Index");
+    options.Conventions.AllowAnonymousToPage("/Privacy");
+    options.Conventions.AllowAnonymousToPage("/Account/Login");
+    options.Conventions.AllowAnonymousToPage("/Account/Register");
+    options.Conventions.AuthorizeFolder("/Admin", "RequireAdminRole");
+    options.Conventions.AuthorizeFolder("/Collection", "RequireUserRole");
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Configura pipeline richieste HTTP
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
@@ -54,9 +99,25 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Usa middleware sessione
+app.UseSession();
+
+// Middleware di reindirizzamento personalizzato basato sul ruolo
+app.Use(async (context, next) =>
+{
+    // Procedi con la pipeline di richiesta
+    await next();
+
+    // Se la risposta è 401 (Unauthorized) o 403 (Forbidden), reindirizza a login
+    if (context.Response.StatusCode == 401 || context.Response.StatusCode == 403)
+    {
+        context.Response.Redirect("/Account/Login");
+    }
+});
+
 app.MapRazorPages();
 
-// Seed admin user
+// Crea utenti predefiniti se non esistono
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -117,6 +178,5 @@ using (var scope = app.Services.CreateScope())
         logger.LogError(ex, "Si è verificato un errore durante la creazione degli utenti predefiniti.");
     }
 }
-
 
 app.Run();

@@ -1,10 +1,14 @@
-﻿using ComicCollector.Models;
+﻿using System.Threading.Tasks;
+using ComicCollector.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Logging;
 
 namespace ComicCollector.Pages.Account
 {
+    [AllowAnonymous]
     public class LogoutModel : PageModel
     {
         private readonly SignInManager<ApplicationUser> _signInManager;
@@ -16,25 +20,21 @@ namespace ComicCollector.Pages.Account
             _logger = logger;
         }
 
-        public async Task<IActionResult> OnPost(string returnUrl = null)
+        public void OnGet()
         {
-            await _signInManager.SignOutAsync();
-            _logger.LogInformation("User logged out.");
-            if (returnUrl != null)
-            {
-                return LocalRedirect(returnUrl);
-            }
-            else
-            {
-                // This needs to be a redirect so that the browser performs a new
-                // request and the identity for the user gets updated.
-                return RedirectToPage("/Index");
-            }
+            // Non eseguire alcuna azione
         }
 
-        public IActionResult OnGet()
+        public async Task<IActionResult> OnPost()
         {
-            return Page();
+            await _signInManager.SignOutAsync();
+            _logger.LogInformation("Utente disconnesso.");
+
+            // Registra informazioni sulla sessione terminata
+            _logger.LogInformation($"Sessione terminata: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}");
+            _logger.LogInformation($"Utente: StefaTerceil");
+
+            return RedirectToPage("/Index");
         }
     }
 }
