@@ -2,71 +2,53 @@ using ComicCollector.Data;
 using ComicCollector.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc.Authorization;
+using ComicCollector.Services; // Aggiungi questo using
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Aggiungi servizi al container
+// Aggiungi servizi al container.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<ComicCollector.Services.SessionInfoService>();
-
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
-
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// Configura Identity con impostazioni di sicurezza e sessione
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
-    // Impostazioni password
     options.Password.RequireDigit = true;
     options.Password.RequiredLength = 8;
-    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireNonAlphanumeric = false; // Modificato per semplicità, puoi cambiarlo
     options.Password.RequireUppercase = true;
     options.Password.RequireLowercase = true;
-
-    // Impostazioni blocco account
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.Lockout.MaxFailedAccessAttempts = 5;
-
-    // Impostazioni utente
     options.User.RequireUniqueEmail = true;
-    options.SignIn.RequireConfirmedEmail = false;
+    options.SignIn.RequireConfirmedEmail = false; // Modificato per semplicità
 })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
-// Configura sessione
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromHours(2);
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
-    options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 });
 
-// Configura cookie policy
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
-    options.AccessDeniedPath = "/Account/Login"; // Reindirizza a Login invece di Access Denied
+    options.AccessDeniedPath = "/Account/Login";
     options.SlidingExpiration = true;
     options.ExpireTimeSpan = TimeSpan.FromHours(2);
 });
 
-// Aggiungi policy di autorizzazione
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
     options.AddPolicy("RequireUserRole", policy => policy.RequireRole("User", "Admin"));
 });
 
-// Configura tutte le pagine per richiedere autenticazione per impostazione predefinita
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/");
@@ -74,13 +56,25 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Privacy");
     options.Conventions.AllowAnonymousToPage("/Account/Login");
     options.Conventions.AllowAnonymousToPage("/Account/Register");
+    options.Conventions.AllowAnonymousToPage("/Account/Logout"); // Logout deve essere accessibile
     options.Conventions.AuthorizeFolder("/Admin", "RequireAdminRole");
     options.Conventions.AuthorizeFolder("/Collection", "RequireUserRole");
+    options.Conventions.AllowAnonymousToPage("/Discover/Index"); // La pagina Discover può essere pubblica
 });
+
+// Registrazione Servizi HTTP Client e Servizi API
+builder.Services.AddHttpContextAccessor(); // Per SessionInfoService
+builder.Services.AddScoped<SessionInfoService>();
+
+builder.Services.AddHttpClient<ComicVineService>();
+builder.Services.AddHttpClient<MangaDexService>();
+builder.Services.AddScoped<ComicVineService>();
+builder.Services.AddScoped<MangaDexService>();
+
 
 var app = builder.Build();
 
-// Configura pipeline richieste HTTP
+// Configura pipeline HTTP.
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
@@ -99,25 +93,27 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Usa middleware sessione
 app.UseSession();
 
-// Middleware di reindirizzamento personalizzato basato sul ruolo
+// Middleware di reindirizzamento personalizzato (opzionale, ma lo avevamo prima)
 app.Use(async (context, next) =>
 {
-    // Procedi con la pipeline di richiesta
     await next();
-
-    // Se la risposta è 401 (Unauthorized) o 403 (Forbidden), reindirizza a login
-    if (context.Response.StatusCode == 401 || context.Response.StatusCode == 403)
+    if ((context.Response.StatusCode == 401 || context.Response.StatusCode == 403) && !context.Request.Path.StartsWithSegments("/api")) // Non reidirezionare per API calls
     {
-        context.Response.Redirect("/Account/Login");
+        if (!context.User.Identity.IsAuthenticated) // Solo se non autenticato
+        {
+            context.Response.Redirect("/Account/Login");
+        }
+        // Se autenticato ma 403, potrebbe essere reindirizzato alla home o a una pagina "non autorizzato" specifica
+        // Per ora, se è 403 e autenticato, non facciamo nulla qui, Identity gestirà AccessDeniedPath
     }
 });
 
+
 app.MapRazorPages();
 
-// Crea utenti predefiniti se non esistono
+// Seed utenti e ruoli
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -126,19 +122,15 @@ using (var scope = app.Services.CreateScope())
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
 
-        // Assicurati che il ruolo Admin esista
-        if (!await roleManager.RoleExistsAsync("Admin"))
+        string[] roleNames = { "Admin", "User" };
+        foreach (var roleName in roleNames)
         {
-            await roleManager.CreateAsync(new IdentityRole("Admin"));
+            if (!await roleManager.RoleExistsAsync(roleName))
+            {
+                await roleManager.CreateAsync(new IdentityRole(roleName));
+            }
         }
 
-        // Assicurati che il ruolo User esista
-        if (!await roleManager.RoleExistsAsync("User"))
-        {
-            await roleManager.CreateAsync(new IdentityRole("User"));
-        }
-
-        // Crea l'utente Admin se non esiste
         var adminUser = await userManager.FindByEmailAsync("admin@example.com");
         if (adminUser == null)
         {
@@ -150,12 +142,10 @@ using (var scope = app.Services.CreateScope())
                 LastName = "User",
                 EmailConfirmed = true
             };
-
             await userManager.CreateAsync(adminUser, "Admin123!");
             await userManager.AddToRoleAsync(adminUser, "Admin");
         }
 
-        // Crea l'utente Test se non esiste
         var testUser = await userManager.FindByEmailAsync("test@example.com");
         if (testUser == null)
         {
@@ -167,7 +157,6 @@ using (var scope = app.Services.CreateScope())
                 LastName = "Test",
                 EmailConfirmed = true
             };
-
             await userManager.CreateAsync(testUser, "Test123!");
             await userManager.AddToRoleAsync(testUser, "User");
         }
@@ -175,7 +164,7 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Si è verificato un errore durante la creazione degli utenti predefiniti.");
+        logger.LogError(ex, "Si è verificato un errore durante il seeding del database.");
     }
 }
 

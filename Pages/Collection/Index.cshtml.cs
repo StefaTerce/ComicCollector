@@ -3,10 +3,13 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
 using ComicCollector.Models;
+using ComicCollector.Data;
+using ComicCollector.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace ComicCollector.Pages.Collection
 {
@@ -14,209 +17,253 @@ namespace ComicCollector.Pages.Collection
     public class IndexModel : PageModel
     {
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ApplicationDbContext _context;
         private readonly ILogger<IndexModel> _logger;
+        private readonly SessionInfoService _sessionInfo;
 
         public List<Comic> UserComics { get; set; }
         public HashSet<string> AllSeries { get; set; }
         public HashSet<string> AllPublishers { get; set; }
-        public int SeriesCount => AllSeries.Count;
+        public int SeriesCount => AllSeries?.Count ?? 0;
         public int AuthorsCount { get; set; }
-        public int PublishersCount => AllPublishers.Count;
-        public string CurrentUserName { get; set; }
-        public string CurrentDate { get; set; }
+        public int PublishersCount => AllPublishers?.Count ?? 0;
 
         [TempData]
         public string StatusMessage { get; set; }
-
         [TempData]
         public bool IsError { get; set; }
 
-        public IndexModel(UserManager<ApplicationUser> userManager, ILogger<IndexModel> logger)
+        public IndexModel(
+            UserManager<ApplicationUser> userManager,
+            ApplicationDbContext context,
+            ILogger<IndexModel> logger,
+            SessionInfoService sessionInfo)
         {
             _userManager = userManager;
+            _context = context;
             _logger = logger;
+            _sessionInfo = sessionInfo;
             UserComics = new List<Comic>();
             AllSeries = new HashSet<string>();
             AllPublishers = new HashSet<string>();
-            AuthorsCount = 0;
         }
 
         public async Task OnGetAsync()
         {
-            // Ottieni informazioni sull'utente corrente
-            var currentUser = await _userManager.GetUserAsync(User);
-            CurrentUserName = currentUser?.UserName ?? "StefaTerceil";
-            CurrentDate = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+            _sessionInfo.LogSessionInfo("Collection/Index");
 
-            // In un'app reale, questi fumetti sarebbero caricati dal database
-            // Per ora, creiamo alcuni fumetti di esempio
-            var currentUserId = _userManager.GetUserId(User);
-            CreateSampleComics(currentUserId);
-
-            // Popola le liste di serie e editori
-            AllSeries = new HashSet<string>(UserComics.Select(c => c.Series));
-            AllPublishers = new HashSet<string>(UserComics.Select(c => c.Publisher));
-
-            // Conta autori unici
-            HashSet<string> authors = new HashSet<string>();
-            foreach (var comic in UserComics)
+            var currentUserId = _sessionInfo.GetCurrentUserId();
+            if (string.IsNullOrEmpty(currentUserId))
             {
-                authors.Add(comic.Author);
+                StatusMessage = "Errore: Utente non identificato.";
+                IsError = true;
+                return;
             }
-            AuthorsCount = authors.Count;
+
+            UserComics = await _context.Comics
+                                 .Where(c => c.UserId == currentUserId)
+                                 .OrderByDescending(c => c.CreatedAt)
+                                 .ToListAsync();
+
+            if (UserComics.Any())
+            {
+                AllSeries = new HashSet<string>(UserComics.Select(c => c.Series).Where(s => !string.IsNullOrEmpty(s)).Distinct(), StringComparer.OrdinalIgnoreCase);
+                AllPublishers = new HashSet<string>(UserComics.Select(c => c.Publisher).Where(p => !string.IsNullOrEmpty(p)).Distinct(), StringComparer.OrdinalIgnoreCase);
+                AuthorsCount = UserComics.Select(c => c.Author).Where(a => !string.IsNullOrEmpty(a)).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+            }
+            else
+            {
+                AllSeries = new HashSet<string>();
+                AllPublishers = new HashSet<string>();
+                AuthorsCount = 0;
+            }
         }
 
-        public IActionResult OnPostAddComic(Comic newComic)
+        public async Task<IActionResult> OnPostAddComicAsync(Comic newComic) // Aggiunta Manuale
         {
+            var currentUserId = _sessionInfo.GetCurrentUserId();
+            if (string.IsNullOrEmpty(currentUserId)) return Forbid();
+
+            // Rimuovi User e UserId da ModelState per la validazione del form manuale
+            ModelState.Remove("UserId");
+            ModelState.Remove("User");
+            ModelState.Remove("SourceId"); // SourceId non è nel form manuale
+
             if (!ModelState.IsValid)
             {
                 IsError = true;
-                StatusMessage = "Errore nella validazione dei dati del fumetto.";
-                return RedirectToPage();
+                StatusMessage = "Errore nella validazione dei dati del fumetto. Controlla i campi.";
+                await OnGetAsync();
+                return Page();
             }
 
-            // In un'app reale, salveresti il fumetto nel database
-            // Per ora, aggiungiamo un messaggio di successo e torniamo alla pagina
+            newComic.UserId = currentUserId;
+            newComic.CreatedAt = DateTime.UtcNow;
+            newComic.UpdatedAt = DateTime.UtcNow;
+            newComic.Source = "Local"; // Specifico per aggiunta manuale
+            // newComic.SourceId sarà null per aggiunte manuali
 
-            newComic.Id = Guid.NewGuid().ToString();
-            newComic.UserId = _userManager.GetUserId(User);
-            newComic.CreatedAt = DateTime.Now;
-            newComic.UpdatedAt = DateTime.Now;
+            _context.Comics.Add(newComic);
+            await _context.SaveChangesAsync();
 
             IsError = false;
-            StatusMessage = "Fumetto aggiunto con successo!";
+            StatusMessage = $"'{newComic.Title}' aggiunto con successo alla tua collezione!";
             return RedirectToPage();
         }
 
-        public IActionResult OnPostUpdateComic(Comic updatedComic)
+        public async Task<IActionResult> OnPostUpdateComicAsync(Comic updatedComic)
         {
+            var currentUserId = _sessionInfo.GetCurrentUserId();
+            if (string.IsNullOrEmpty(currentUserId)) return Forbid();
+
+            ModelState.Remove("UserId");
+            ModelState.Remove("User");
+            // Source e SourceId sono hidden fields, quindi dovrebbero essere validi
+            // CreatedAt è un hidden field
+
             if (!ModelState.IsValid)
             {
                 IsError = true;
-                StatusMessage = "Errore nella validazione dei dati del fumetto.";
-                return RedirectToPage();
+                StatusMessage = "Errore nella validazione dei dati per l'aggiornamento. Controlla i campi.";
+                await OnGetAsync();
+                return Page();
             }
 
-            // In un'app reale, aggiorneresti il fumetto nel database
-            updatedComic.UpdatedAt = DateTime.Now;
+            var comicToUpdate = await _context.Comics
+                                        .FirstOrDefaultAsync(c => c.ComicCollectorId == updatedComic.ComicCollectorId && c.UserId == currentUserId);
 
-            IsError = false;
-            StatusMessage = "Fumetto aggiornato con successo!";
-            return RedirectToPage();
-        }
-
-        public IActionResult OnPostDeleteComic(string comicId)
-        {
-            if (string.IsNullOrEmpty(comicId))
+            if (comicToUpdate == null)
             {
                 IsError = true;
-                StatusMessage = "ID fumetto non valido.";
+                StatusMessage = "Fumetto non trovato o non sei autorizzato a modificarlo.";
                 return RedirectToPage();
             }
 
-            // In un'app reale, elimineresti il fumetto dal database
+            comicToUpdate.Title = updatedComic.Title;
+            comicToUpdate.Series = updatedComic.Series;
+            comicToUpdate.IssueNumber = updatedComic.IssueNumber;
+            comicToUpdate.Author = updatedComic.Author;
+            comicToUpdate.Publisher = updatedComic.Publisher;
+            comicToUpdate.PublicationDate = updatedComic.PublicationDate;
+            comicToUpdate.PageCount = updatedComic.PageCount;
+            comicToUpdate.CoverImage = updatedComic.CoverImage;
+            comicToUpdate.Description = updatedComic.Description;
+            comicToUpdate.Notes = updatedComic.Notes;
+            comicToUpdate.UpdatedAt = DateTime.UtcNow;
+            // Source, SourceId e CreatedAt non dovrebbero cambiare durante un update normale.
 
-            IsError = false;
-            StatusMessage = "Fumetto rimosso dalla collezione.";
+            try
+            {
+                await _context.SaveChangesAsync();
+                IsError = false;
+                StatusMessage = $"'{comicToUpdate.Title}' aggiornato con successo!";
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                IsError = true;
+                StatusMessage = "Errore di concorrenza durante l'aggiornamento. Il fumetto potrebbe essere stato modificato da un altro processo. Riprova.";
+                _logger.LogError("DbUpdateConcurrencyException for comic ID {ComicId}", comicToUpdate.ComicCollectorId);
+                await OnGetAsync(); // Ricarica i dati freschi
+                return Page();
+            }
+            catch (Exception ex)
+            {
+                IsError = true;
+                StatusMessage = "Si è verificato un errore imprevisto durante l'aggiornamento.";
+                _logger.LogError(ex, "Error updating comic ID {ComicId}", comicToUpdate.ComicCollectorId);
+                await OnGetAsync();
+                return Page();
+            }
+
             return RedirectToPage();
         }
 
-        private void CreateSampleComics(string userId)
+        public async Task<IActionResult> OnPostDeleteComicAsync(int comicIdToDelete)
         {
-            // Creiamo alcuni fumetti di esempio per la demo
-            UserComics = new List<Comic>
+            var currentUserId = _sessionInfo.GetCurrentUserId();
+            if (string.IsNullOrEmpty(currentUserId)) return Forbid();
+
+            var comicToDelete = await _context.Comics
+                                        .FirstOrDefaultAsync(c => c.ComicCollectorId == comicIdToDelete && c.UserId == currentUserId);
+
+            if (comicToDelete == null)
             {
-                new Comic
-                {
-                    Id = "1",
-                    Title = "Batman: Anno Uno",
-                    Series = "Batman",
-                    IssueNumber = 1,
-                    Author = "Frank Miller",
-                    Publisher = "DC Comics",
-                    PublicationDate = new DateTime(1987, 2, 1),
-                    PageCount = 48,
-                    CoverImage = "https://www.dccomics.com/sites/default/files/styles/covers192x291/public/comic-covers/2018/06/batman_v1_404_5b1711c8e1d8c2.26538074.jpg",
-                    Description = "La storia delle origini di Batman rivisitata da Frank Miller.",
-                    Notes = "Prima edizione, ottime condizioni",
-                    UserId = userId
-                },
-                new Comic
-                {
-                    Id = "2",
-                    Title = "Il ritorno del Cavaliere Oscuro",
-                    Series = "Batman",
-                    IssueNumber = 1,
-                    Author = "Frank Miller",
-                    Publisher = "DC Comics",
-                    PublicationDate = new DateTime(1986, 2, 1),
-                    PageCount = 52,
-                    CoverImage = "https://m.media-amazon.com/images/I/91K96aHEXOL._SY466_.jpg",
-                    Description = "Un Batman invecchiato torna dall'ombra per affrontare una nuova ondata di crimini.",
-                    Notes = "Leggeri segni di usura",
-                    UserId = userId
-                },
-                new Comic
-                {
-                    Id = "3",
-                    Title = "Civil War",
-                    Series = "Civil War",
-                    IssueNumber = 1,
-                    Author = "Mark Millar",
-                    Publisher = "Marvel",
-                    PublicationDate = new DateTime(2006, 7, 1),
-                    PageCount = 40,
-                    CoverImage = "https://cdn.marvel.com/u/prod/marvel/i/mg/c/10/51ed8a1dce6fb/clean.jpg",
-                    Description = "Una legge di registrazione dei supereroi divide gli Avengers.",
-                    Notes = "Nuova edizione",
-                    UserId = userId
-                },
-                new Comic
-                {
-                    Id = "4",
-                    Title = "Watchmen",
-                    Series = "Watchmen",
-                    IssueNumber = 1,
-                    Author = "Alan Moore",
-                    Publisher = "DC Comics",
-                    PublicationDate = new DateTime(1986, 9, 1),
-                    PageCount = 36,
-                    CoverImage = "https://m.media-amazon.com/images/I/91M4h1+IFML._SY466_.jpg",
-                    Description = "In un mondo alternativo, i supereroi sono considerati fuorilegge.",
-                    Notes = "Edizione speciale",
-                    UserId = userId
-                },
-                new Comic
-                {
-                    Id = "5",
-                    Title = "L'Ultima Caccia di Kraven",
-                    Series = "Spider-Man",
-                    IssueNumber = 294,
-                    Author = "J.M. DeMatteis",
-                    Publisher = "Marvel",
-                    PublicationDate = new DateTime(1987, 10, 1),
-                    PageCount = 32,
-                    CoverImage = "https://i.annihil.us/u/prod/marvel/i/mg/2/b0/5cd9ca8e99580/clean.jpg",
-                    Description = "Kraven il cacciatore affronta Spider-Man per l'ultima volta.",
-                    Notes = "Buone condizioni",
-                    UserId = userId
-                },
-                new Comic
-                {
-                    Id = "6",
-                    Title = "Preacher: Finché il mondo non finisca",
-                    Series = "Preacher",
-                    IssueNumber = 1,
-                    Author = "Garth Ennis",
-                    Publisher = "Vertigo",
-                    PublicationDate = new DateTime(1995, 4, 1),
-                    PageCount = 48,
-                    CoverImage = "https://m.media-amazon.com/images/I/91dXpS+QmNL._SY466_.jpg",
-                    Description = "Un predicatore ottiene un potere soprannaturale e parte alla ricerca di Dio.",
-                    Notes = "Edizione italiana",
-                    UserId = userId
-                }
+                IsError = true;
+                StatusMessage = "Fumetto non trovato o non sei autorizzato a eliminarlo.";
+                return RedirectToPage();
+            }
+
+            _context.Comics.Remove(comicToDelete);
+            await _context.SaveChangesAsync();
+
+            IsError = false;
+            StatusMessage = $"'{comicToDelete.Title}' rimosso dalla collezione.";
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostAddToCollectionFromDiscoverAsync(
+            string title, string series, int? issueNumber, string author, string publisher,
+            string publicationDateStr, string coverImage, string description,
+            string source, string sourceId)
+        {
+            var currentUserId = _sessionInfo.GetCurrentUserId();
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                // Se l'utente non è loggato, reindirizza al login
+                TempData["ErrorMessage"] = "Devi effettuare il login per aggiungere elementi alla tua collezione.";
+                return RedirectToPage("/Account/Login", new { ReturnUrl = Url.Page("/Discover/Index", new { SearchQuery = TempData["LastSearchQuery"] }) });
+            }
+
+            // Prova a parsare la data
+            if (!DateTime.TryParse(publicationDateStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out DateTime publicationDate))
+            {
+                // Se il parsing fallisce, usa una data di default o gestisci l'errore
+                // Potrebbe essere che l'API non fornisca sempre una data completa.
+                // Per MangaDex, abbiamo usato Year. Se è Year, usiamo il 1 Gennaio di quell'anno.
+                // Per ComicVine, abbiamo provato a parsare "YYYY-MM-DD" o "YYYY-MM-00".
+                // Questo handler riceve una stringa formattata come "o" (ISO 8601).
+                _logger.LogWarning($"Could not parse publicationDate: {publicationDateStr} for {title}. Using DateTime.MinValue.");
+                publicationDate = DateTime.MinValue; // O gestisci come errore
+            }
+
+
+            // Controlla se l'elemento esiste già per questo utente dalla stessa fonte e ID sorgente
+            var existingComic = await _context.Comics
+                .FirstOrDefaultAsync(c => c.UserId == currentUserId && c.Source == source && c.SourceId == sourceId);
+
+            if (existingComic != null)
+            {
+                TempData["StatusMessage"] = $"'{title}' è già nella tua collezione.";
+                TempData["IsError"] = true;
+                return RedirectToPage("/Discover/Index", new { SearchQuery = TempData["LastSearchQuery"] ?? "" });
+            }
+
+            var newComic = new Comic
+            {
+                Title = title,
+                Series = series,
+                IssueNumber = issueNumber,
+                Author = author,
+                Publisher = publisher,
+                PublicationDate = publicationDate,
+                CoverImage = coverImage,
+                Description = description,
+                Source = source,
+                SourceId = sourceId,
+                UserId = currentUserId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
+
+            // Valida il modello manualmente se necessario, anche se i dati provengono da API
+            // TryValidateModel(newComic); // Opzionale
+
+            _context.Comics.Add(newComic);
+            await _context.SaveChangesAsync();
+
+            TempData["StatusMessage"] = $"'{title}' aggiunto alla tua collezione!";
+            TempData["IsError"] = false;
+            return RedirectToPage("/Discover/Index", new { SearchQuery = TempData["LastSearchQuery"] ?? "" });
         }
     }
 }

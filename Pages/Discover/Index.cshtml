@@ -1,0 +1,281 @@
+﻿@page
+@model ComicCollector.Pages.Discover.IndexModel
+@{
+    ViewData["Title"] = "Scopri nuovi fumetti e manga";
+}
+
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-lg-8 mx-auto text-center">
+            <h1 class="display-5 fw-bold mb-3">Scopri Fumetti e Manga</h1>
+            <p class="lead text-muted">Esplora migliaia di titoli da ComicVine e MangaDex.</p>
+        </div>
+    </div>
+
+    @if (TempData["StatusMessage"] != null)
+    {
+        var isError = (bool)(TempData["IsError"] ?? false);
+        var statusClass = isError ? "danger" : "success";
+        <div class="alert alert-@statusClass alert-dismissible fade show mb-4" role="alert">
+            @TempData["StatusMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row mb-5">
+        <div class="col-lg-9 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="get">
+                        {/* Cambiato a GET per permettere bookmark e condivisione URL con query */}
+                        @* @Html.AntiForgeryToken() // Non necessario per GET *@
+                        <div class="input-group mb-3">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" asp-for="SearchQuery" class="form-control form-control-lg" placeholder="Titolo, serie, autore..." autofocus>
+                            <button class="btn btn-primary btn-lg" type="submit"><i class="bi bi-search"></i> Cerca</button>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-auto">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" asp-for="SearchComicVine" id="searchComicVine">
+                                    <label class="form-check-label" for="searchComicVine">
+                                        <img src="https://comicvine.gamespot.com/a/uploads/square_avatar/11/110802/6885704-cvl.jpg" height="20" alt="ComicVine" class="me-1">ComicVine
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-auto">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" asp-for="SearchMangaDex" id="searchMangaDex">
+                                    <label class="form-check-label" for="searchMangaDex">
+                                        <img src="https://mangadex.org/img/favicon-192x192.png" height="20" alt="MangaDex" class="me-1">MangaDex
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sezione Nuove Uscite (o contenuto featured) -->
+    @if (!Model.ShowSearchResults && Model.NewReleases.Any())
+    {
+        <div class="mb-5">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h4 mb-0">Suggerimenti per te</h2>
+                <!-- <a asp-page="/Discover/New" class="btn btn-outline-primary btn-sm">Vedi tutte <i class="bi bi-arrow-right"></i></a> -->
+            </div>
+            <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-5 g-3">
+                @foreach (var comic in Model.NewReleases) // Usiamo NewReleases come esempio di featured
+                {
+                    <div class="col">
+                        <div class="card h-100 shadow-sm comic-card">
+                            <div class="position-relative">
+                                <img src="@(string.IsNullOrEmpty(comic.CoverImage) ? "https://via.placeholder.com/300x450/e0e0e0/909090?text=No+Image" : comic.CoverImage)"
+                                     class="card-img-top comic-cover" alt="@comic.Title" style="height: 280px; object-fit: cover;">
+                                <span class="position-absolute top-0 start-0 badge @(comic.Source == "ComicVine" ? "bg-primary" : "bg-warning text-dark") m-2" style="font-size: 0.7rem;">@comic.Source</span>
+                            </div>
+                            <div class="card-body d-flex flex-column p-2">
+                                <h6 class="card-title text-truncate small mb-1" title="@comic.Title">@comic.Title</h6>
+                                <p class="card-text text-muted extra-small mb-1 text-truncate" title="@comic.Series">
+                                    @comic.Series @if (comic.IssueNumber.HasValue && comic.IssueNumber > 0)
+                                    {
+                                        <text>#@comic.IssueNumber</text>
+                                    }
+                                </p>
+                                <p class="card-text text-muted extra-small text-truncate mt-auto" title="@comic.Author">
+                                    <i class="bi bi-person"></i> @comic.Author
+                                </p>
+                            </div>
+                            <div class="card-footer bg-white border-0 p-2">
+                                <form method="post" asp-page="/Collection/Index" asp-page-handler="AddToCollectionFromDiscover" class="d-grid">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="title" value="@comic.Title" />
+                                    <input type="hidden" name="series" value="@comic.Series" />
+                                    <input type="hidden" name="issueNumber" value="@(comic.IssueNumber ?? 0)" />
+                                    <input type="hidden" name="author" value="@comic.Author" />
+                                    <input type="hidden" name="publisher" value="@(comic.Publisher ?? "N/A")" />
+                                    <input type="hidden" name="publicationDateStr" value="@comic.PublicationDate.ToString("o")" />
+                                    <input type="hidden" name="coverImage" value="@comic.CoverImage" />
+                                    <input type="hidden" name="description" value="@(comic.Description ?? "")" />
+                                    <input type="hidden" name="source" value="@comic.Source" />
+                                    <input type="hidden" name="sourceId" value="@comic.SourceId" />
+                                    <button type="submit" class="btn btn-sm btn-success w-100" title="Aggiungi alla collezione">
+                                        <i class="bi bi-plus-circle"></i> Aggiungi
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Risultati Ricerca -->
+    @if (Model.ShowSearchResults)
+    {
+        <h2 class="mb-4 h4">Risultati per: "@Model.SearchQuery"</h2>
+
+        @if (!Model.ComicVineResults.Any() && !Model.MangaDexResults.Any())
+        {
+            <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle-fill me-2 fs-4"></i>
+                Nessun risultato trovato. Prova con termini di ricerca diversi o controlla le fonti selezionate.
+            </div>
+        }
+        else
+        {
+            <ul class="nav nav-tabs mb-4" id="searchResultsTabs" role="tablist">
+                @if (Model.SearchComicVine && Model.ComicVineResults.Any())
+                {
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="comics-tab" data-bs-toggle="tab" data-bs-target="#comics-results" type="button" role="tab" aria-controls="comics-results" aria-selected="true">
+                            <img src="https://comicvine.gamespot.com/a/uploads/square_avatar/11/110802/6885704-cvl.jpg" height="16" alt="ComicVine" class="me-1">Fumetti (@Model.ComicVineResults.Count)
+                        </button>
+                    </li>
+                }
+                @if (Model.SearchMangaDex && Model.MangaDexResults.Any())
+                {
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link @(!Model.ComicVineResults.Any() ? "active" : "")" id="manga-tab" data-bs-toggle="tab" data-bs-target="#manga-results" type="button" role="tab" aria-controls="manga-results" aria-selected="@(!Model.ComicVineResults.Any())">
+                            <img src="https://mangadex.org/img/favicon-192x192.png" height="16" alt="MangaDex" class="me-1">Manga (@Model.MangaDexResults.Count)
+                        </button>
+                    </li>
+                }
+            </ul>
+
+            <div class="tab-content" id="searchResultsTabContent">
+                @if (Model.SearchComicVine && Model.ComicVineResults.Any())
+                {
+                    <div class="tab-pane fade show active" id="comics-results" role="tabpanel" aria-labelledby="comics-tab">
+                        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-2 row-cols-lg-3 g-4">
+                            @foreach (var comic in Model.ComicVineResults)
+                            {
+                                <div class="col">
+                                    <div class="card h-100 shadow-sm">
+                                        <div class="row g-0 h-100">
+                                            <div class="col-4 col-sm-5">
+                                                <img src="@(string.IsNullOrEmpty(comic.CoverImage) ? "https://via.placeholder.com/300x450/e0e0e0/909090?text=No+Image" : comic.CoverImage)"
+                                                     class="img-fluid rounded-start w-100 h-100" alt="@comic.Title" style="object-fit: cover;">
+                                            </div>
+                                            <div class="col-8 col-sm-7 d-flex flex-column">
+                                                <div class="card-body p-3">
+                                                    <h6 class="card-title text-truncate mb-1" title="@comic.Title">@comic.Title</h6>
+                                                    <p class="card-text text-muted extra-small mb-1 text-truncate" title="@comic.Series">
+                                                        @comic.Series @if (comic.IssueNumber.HasValue && comic.IssueNumber > 0)
+                                                        {
+                                                            <text>#@comic.IssueNumber</text>
+                                                        }
+                                                    </p>
+                                                    <p class="card-text extra-small mb-1 text-truncate" title="@comic.Author"><i class="bi bi-person"></i> @comic.Author</p>
+                                                    <p class="card-text extra-small text-muted mb-2">
+                                                        <i class="bi bi-calendar3"></i> @comic.PublicationDate.ToString("MMM yyyy")
+                                                    </p>
+                                                    <p class="card-text extra-small description-truncate-results d-none d-sm-block">
+                                                        @(string.IsNullOrEmpty(comic.Description) ? "Nessuna descrizione." : comic.Description)
+                                                    </p>
+                                                </div>
+                                                <div class="card-footer bg-transparent border-0 p-3 pt-0 mt-auto">
+                                                    <form method="post" asp-page="/Collection/Index" asp-page-handler="AddToCollectionFromDiscover" class="d-grid">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="title" value="@comic.Title" />
+                                                        <input type="hidden" name="series" value="@comic.Series" />
+                                                        <input type="hidden" name="issueNumber" value="@(comic.IssueNumber ?? 0)" />
+                                                        <input type="hidden" name="author" value="@comic.Author" />
+                                                        <input type="hidden" name="publisher" value="@(comic.Publisher ?? "N/A")" />
+                                                        <input type="hidden" name="publicationDateStr" value="@comic.PublicationDate.ToString("o")" />
+                                                        <input type="hidden" name="coverImage" value="@comic.CoverImage" />
+                                                        <input type="hidden" name="description" value="@(comic.Description ?? "")" />
+                                                        <input type="hidden" name="source" value="ComicVine" />
+                                                        <input type="hidden" name="sourceId" value="@comic.SourceId" />
+                                                        <button type="submit" class="btn btn-sm btn-success w-100" title="Aggiungi alla collezione">
+                                                            <i class="bi bi-plus-circle"></i> Aggiungi
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (Model.SearchMangaDex && Model.MangaDexResults.Any())
+                {
+                    <div class="tab-pane fade @(!Model.ComicVineResults.Any() ? "show active" : "")" id="manga-results" role="tabpanel" aria-labelledby="manga-tab">
+                        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-2 row-cols-lg-3 g-4">
+                            @foreach (var manga in Model.MangaDexResults)
+                            {
+                                <div class="col">
+                                    <div class="card h-100 shadow-sm">
+                                        <div class="row g-0 h-100">
+                                            <div class="col-4 col-sm-5">
+                                                <img src="@(string.IsNullOrEmpty(manga.CoverImageUrl) ? "https://via.placeholder.com/300x450/e0e0e0/909090?text=No+Image" : manga.CoverImageUrl)"
+                                                     class="img-fluid rounded-start w-100 h-100" alt="@manga.Title" style="object-fit: cover;">
+                                            </div>
+                                            <div class="col-8 col-sm-7 d-flex flex-column">
+                                                <div class="card-body p-3">
+                                                    <h6 class="card-title text-truncate mb-1" title="@manga.Title">@manga.Title</h6>
+                                                    <p class="card-text text-muted extra-small mb-1">@manga.Status</p>
+                                                    <p class="card-text extra-small mb-1 text-truncate" title="@manga.Author"><i class="bi bi-person"></i> @manga.Author</p>
+                                                    <p class="card-text extra-small text-muted mb-2">
+                                                        <i class="bi bi-calendar3"></i> @(manga.Year.HasValue ? manga.Year.ToString() : "N/A")
+                                                    </p>
+                                                    <p class="card-text extra-small description-truncate-results d-none d-sm-block">
+                                                        @(string.IsNullOrEmpty(manga.Description) ? "Nessuna descrizione." : manga.Description)
+                                                    </p>
+                                                </div>
+                                                <div class="card-footer bg-transparent border-0 p-3 pt-0 mt-auto">
+                                                    <form method="post" asp-page="/Collection/Index" asp-page-handler="AddToCollectionFromDiscover" class="d-grid">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="title" value="@manga.Title" />
+                                                        <input type="hidden" name="series" value="Manga" />
+                                                        <input type="hidden" name="issueNumber" value="0" />
+                                                        <input type="hidden" name="author" value="@manga.Author" />
+                                                        <input type="hidden" name="publisher" value="N/A" />
+                                                        <input type="hidden" name="publicationDateStr" value="@manga.PublicationDateForSort.ToString("o")" />
+                                                        <input type="hidden" name="coverImage" value="@manga.CoverImageUrl" />
+                                                        <input type="hidden" name="description" value="@(manga.Description ?? "")" />
+                                                        <input type="hidden" name="source" value="MangaDex" />
+                                                        <input type="hidden" name="sourceId" value="@manga.Id" />
+                                                        <button type="submit" class="btn btn-sm btn-success w-100" title="Aggiungi alla collezione">
+                                                            <i class="bi bi-plus-circle"></i> Aggiungi
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .extra-small {
+        font-size: 0.75rem; /* Più piccolo del .small di Bootstrap */
+    }
+
+    .description-truncate-results {
+        display: -webkit-box;
+        -webkit-line-clamp: 2; /* Mostra 2 righe per i risultati di ricerca */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        max-height: 2.4em; /* Circa 2 righe, aggiusta se necessario */
+        line-height: 1.2em;
+    }
+
+    .comic-card .card-title, .comic-card .card-text {
+        line-height: 1.2; /* Riduci interlinea per compattare */
+    }
+</style>

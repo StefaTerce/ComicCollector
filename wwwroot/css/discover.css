@@ -1,0 +1,94 @@
+﻿/* Stili per la sezione Discover e card in generale */
+.comic-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+    .comic-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1) !important;
+    }
+
+.description-truncate-results { /* Per i risultati della ricerca */
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Limita a 2 righe */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.8rem; /* Leggermente più piccolo per compattezza */
+    line-height: 1.3;
+    max-height: 2.6em; /* (2 righe * 1.3 interlinea) */
+}
+
+.card-title {
+    font-size: 0.9rem; /* Riduci un po' la dimensione del titolo nelle card */
+}
+
+.card-text.extra-small {
+    font-size: 0.75rem;
+    line-height: 1.2;
+}
+
+.source-badge { /* Non più usato direttamente, ma utile per riferimenti futuri */
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 1;
+    font-size: 0.65rem;
+    padding: 0.2em 0.4em;
+}
+
+.comic-cover { /* Usato per le card "featured" */
+    height: 280px;
+    object-fit: cover;
+}
+
+.search-container .card-body {
+    padding: 1.5rem; /* Riduci padding per la card di ricerca */
+}
+
+.nav-tabs .nav-link img {
+    height: 16px;
+    margin-right: 0.3rem;
+    vertical-align: text-bottom;
+}
+
+.nav-tabs .nav-link.active {
+    font-weight: 500;
+}
+
+/* Stili per i pulsanti di aggiunta nelle card dei risultati */
+.card-footer form button {
+    font-size: 0.8rem;
+}
+
+/* Stili per le card dei risultati di ricerca (più compatte) */
+#searchResultsTabContent .card-body {
+    padding: 0.75rem; /* Padding ridotto */
+}
+
+#searchResultsTabContent .card-title {
+    font-size: 0.85rem;
+    margin-bottom: 0.2rem;
+}
+
+#searchResultsTabContent .card-text {
+    font-size: 0.75rem;
+    margin-bottom: 0.2rem;
+}
+
+#searchResultsTabContent .img-fluid {
+    border-top-left-radius: var(--bs-card-inner-border-radius);
+    border-bottom-left-radius: var(--bs-card-inner-border-radius);
+}
+
+/* Assicura che il footer sia in basso */
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.container.mt-4 {
+    flex-grow: 1;
+}
+    

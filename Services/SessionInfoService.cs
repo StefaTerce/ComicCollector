@@ -1,6 +1,7 @@
 ﻿using System;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using System.Security.Claims; // Per User.Identity.Name
 
 namespace ComicCollector.Services
 {
@@ -17,19 +18,30 @@ namespace ComicCollector.Services
 
         public string GetCurrentUtcDateTime()
         {
+            // Formato richiesto: YYYY-MM-DD HH:MM:SS
             return DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
         }
 
         public string GetSessionUserName()
         {
-            // Ottieni l'utente corrente o restituisci un valore predefinito
-            return _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "StefaTerce";
+            var userName = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+            return string.IsNullOrEmpty(userName) ? "StefaTerce" : userName; // Default se non loggato o non trovato
         }
 
-        public void LogSessionInfo()
+        public string GetCurrentUserId()
         {
-            _logger.LogInformation($"Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): {GetCurrentUtcDateTime()}");
-            _logger.LogInformation($"Current User's Login: {GetSessionUserName()}");
+            return _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        }
+
+
+        public void LogSessionInfo(string pageName = null)
+        {
+            string logMessage = $"Session Info - Page: {(string.IsNullOrEmpty(pageName) ? "N/A" : pageName)} | UTC Time: {GetCurrentUtcDateTime()} | User: {GetSessionUserName()}";
+            if (!string.IsNullOrEmpty(GetCurrentUserId()))
+            {
+                logMessage += $" (ID: {GetCurrentUserId()})";
+            }
+            _logger.LogInformation(logMessage);
         }
     }
 }
