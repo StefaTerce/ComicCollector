@@ -40,7 +40,7 @@
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" asp-for="SearchComicVine" id="searchComicVine">
                                     <label class="form-check-label" for="searchComicVine">
-                                        <img src="https://comicvine.gamespot.com/a/uploads/square_avatar/11/110802/6885704-cvl.jpg" height="20" alt="ComicVine" class="me-1">ComicVine
+                                        ComicVine
                                     </label>
                                 </div>
                             </div>
@@ -48,7 +48,7 @@
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" asp-for="SearchMangaDex" id="searchMangaDex">
                                     <label class="form-check-label" for="searchMangaDex">
-                                        <img src="https://mangadex.org/img/favicon-192x192.png" height="20" alt="MangaDex" class="me-1">MangaDex
+                                        MangaDex
                                     </label>
                                 </div>
                             </div>
@@ -189,7 +189,7 @@
                 {
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="comics-tab" data-bs-toggle="tab" data-bs-target="#comics-results" type="button" role="tab" aria-controls="comics-results" aria-selected="true">
-                            <img src="https://comicvine.gamespot.com/a/uploads/square_avatar/11/110802/6885704-cvl.jpg" height="16" alt="ComicVine" class="me-1">Fumetti (@Model.ComicVineResults.Count)
+                            Fumetti (@Model.ComicVineResults.Count)
                         </button>
                     </li>
                 }
@@ -197,7 +197,7 @@
                 {
                     <li class="nav-item" role="presentation">
                         <button class="nav-link @((!Model.ComicVineResults.Any() && Model.MangaDexResults.Any()) ? "active" : "")" id="manga-tab" data-bs-toggle="tab" data-bs-target="#manga-results" type="button" role="tab" aria-controls="manga-results" aria-selected="@((!Model.ComicVineResults.Any() && Model.MangaDexResults.Any()))">
-                            <img src="https://mangadex.org/img/favicon-192x192.png" height="16" alt="MangaDex" class="me-1">Manga (@Model.MangaDexResults.Count)
+                            Manga (@Model.MangaDexResults.Count)
                         </button>
                     </li>
                 }

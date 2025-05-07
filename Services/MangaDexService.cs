@@ -101,11 +101,14 @@ namespace ComicCollector.Services
                     string coverImageUrl = null;
                     if (!string.IsNullOrEmpty(coverArtId))
                     {
-                        // GetCoverUrlAsync ora fa la chiamata per il filename
                         coverImageUrl = await GetCoverUrlAsync(mangaData.Id, coverArtId);
                     }
-                    _logger.LogInformation($"MangaDex Processing - Title: '{title}', CoverArtRelationshipId: '{coverArtId}', Attempted CoverImageURL: '{coverImageUrl}'");
+                    else
+                    {
+                        _logger.LogWarning($"MangaDex - Manga ID: {mangaData.Id}, Title: {title} - No cover_art relationship found or ID is null.");
+                    }
 
+                    _logger.LogInformation($"MangaDex - Manga ID: {mangaData.Id}, Title: {title}, Determined CoverImageURL: {coverImageUrl ?? "null"}");
 
                     var authors = mangaData.Relationships?.Where(r => r.Type == "author" && r.Attributes?.Name != null).Select(r => r.Attributes.Name);
                     var artists = mangaData.Relationships?.Where(r => r.Type == "artist" && r.Attributes?.Name != null).Select(r => r.Attributes.Name);

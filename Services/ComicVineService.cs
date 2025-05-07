@@ -103,9 +103,9 @@ namespace ComicCollector.Services
                     {
                         _logger.LogWarning($"ComicVine - Title: {issue.Name}, No small/thumb/icon image. Original URL exists: {issue.Image.OriginalUrl} but might be too large.");
                         // Potresti decidere di usare OriginalUrl se è l'unica opzione, ma fai attenzione alle dimensioni.
+                        // imageUrl = issue.Image.OriginalUrl; // Uncomment if you want to use it as a last resort
                     }
-                    _logger.LogInformation($"ComicVine Processing - Title: '{issue.Name}', Attempted Image URL: '{imageUrl}' (From Small: '{issue.Image?.SmallUrl}', Thumb: '{issue.Image?.ThumbUrl}', Icon: '{issue.Image?.IconUrl}')");
-
+                    _logger.LogInformation($"ComicVine - Title: '{issue.Name}', Issue ID: {issue.Id}, Attempted Image URL: '{imageUrl}' (From Small: '{issue.Image?.SmallUrl}', Thumb: '{issue.Image?.ThumbUrl}', Icon: '{issue.Image?.IconUrl}', Original: '{issue.Image?.OriginalUrl}')");
 
                     comics.Add(new Comic
                     {
