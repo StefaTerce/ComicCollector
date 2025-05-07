@@ -33,6 +33,12 @@ namespace ComicCollector.Pages.Collection
         [TempData]
         public bool IsError { get; set; }
 
+        // Pagination properties
+        public int CurrentPage { get; set; } = 1;
+        public int PageSize { get; private set; } = 20; // Number of items per page
+        public int TotalPages { get; set; }
+        public int TotalComicsCount { get; set; }
+
         public IndexModel(
             UserManager<ApplicationUser> userManager,
             ApplicationDbContext context,
@@ -48,7 +54,7 @@ namespace ComicCollector.Pages.Collection
             AllPublishers = new HashSet<string>();
         }
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(int p = 1) // p is the page number from query string
         {
             _sessionInfo.LogSessionInfo("Collection/Index");
 
@@ -57,19 +63,28 @@ namespace ComicCollector.Pages.Collection
             {
                 StatusMessage = "Errore: Utente non identificato.";
                 IsError = true;
+                UserComics = new List<Comic>(); // Ensure UserComics is initialized
+                AllSeries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                AllPublishers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                AuthorsCount = 0;
+                TotalComicsCount = 0;
+                TotalPages = 1;
+                CurrentPage = 1;
                 return;
             }
 
-            UserComics = await _context.Comics
-                                 .Where(c => c.UserId == currentUserId)
-                                 .OrderByDescending(c => c.CreatedAt)
-                                 .ToListAsync();
+            // Get statistics for the entire collection first
+            var allUserComicsForStats = await _context.Comics
+                                         .Where(c => c.UserId == currentUserId)
+                                         .ToListAsync();
 
-            if (UserComics.Any())
+            TotalComicsCount = allUserComicsForStats.Count;
+
+            if (allUserComicsForStats.Any())
             {
-                AllSeries = new HashSet<string>(UserComics.Select(c => c.Series).Where(s => !string.IsNullOrEmpty(s)).Distinct(), StringComparer.OrdinalIgnoreCase);
-                AllPublishers = new HashSet<string>(UserComics.Select(c => c.Publisher).Where(p => !string.IsNullOrEmpty(p)).Distinct(), StringComparer.OrdinalIgnoreCase);
-                AuthorsCount = UserComics.Select(c => c.Author)
+                AllSeries = new HashSet<string>(allUserComicsForStats.Select(c => c.Series).Where(s => !string.IsNullOrEmpty(s)).Distinct(), StringComparer.OrdinalIgnoreCase);
+                AllPublishers = new HashSet<string>(allUserComicsForStats.Select(c => c.Publisher).Where(p => !string.IsNullOrEmpty(p)).Distinct(), StringComparer.OrdinalIgnoreCase);
+                AuthorsCount = allUserComicsForStats.Select(c => c.Author)
                                          .Where(a => !string.IsNullOrEmpty(a))
                                          .Distinct(StringComparer.OrdinalIgnoreCase)
                                          .Count();
@@ -80,6 +95,21 @@ namespace ComicCollector.Pages.Collection
                 AllPublishers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 AuthorsCount = 0;
             }
+
+            // Pagination logic
+            CurrentPage = p;
+            TotalPages = (int)Math.Ceiling(TotalComicsCount / (double)PageSize);
+            if (TotalPages == 0) TotalPages = 1; // Ensure at least one page even if no comics
+            if (CurrentPage < 1) CurrentPage = 1;
+            if (CurrentPage > TotalPages && TotalPages > 0) CurrentPage = TotalPages; // Ensure CurrentPage is not out of bounds
+
+            // Fetch paginated comics
+            UserComics = await _context.Comics
+                                 .Where(c => c.UserId == currentUserId)
+                                 .OrderByDescending(c => c.CreatedAt)
+                                 .Skip((CurrentPage - 1) * PageSize)
+                                 .Take(PageSize)
+                                 .ToListAsync();
         }
 
         public async Task<IActionResult> OnPostAddComicAsync(Comic newComic) // Aggiunta Manuale
@@ -96,7 +126,7 @@ namespace ComicCollector.Pages.Collection
             {
                 IsError = true;
                 StatusMessage = "Errore nella validazione dei dati del fumetto. Controlla i campi.";
-                await OnGetAsync();
+                await OnGetAsync(CurrentPage);
                 return Page();
             }
 
@@ -111,7 +141,7 @@ namespace ComicCollector.Pages.Collection
 
             IsError = false;
             StatusMessage = $"'{newComic.Title}' aggiunto con successo alla tua collezione!";
-            return RedirectToPage();
+            return RedirectToPage(new { p = CurrentPage }); // Redirect to current page or page 1 if preferred
         }
 
         public async Task<IActionResult> OnPostUpdateComicAsync(Comic updatedComic)
@@ -128,7 +158,7 @@ namespace ComicCollector.Pages.Collection
             {
                 IsError = true;
                 StatusMessage = "Errore nella validazione dei dati per l'aggiornamento. Controlla i campi.";
-                await OnGetAsync();
+                await OnGetAsync(CurrentPage);
                 return Page();
             }
 
@@ -139,7 +169,7 @@ namespace ComicCollector.Pages.Collection
             {
                 IsError = true;
                 StatusMessage = "Fumetto non trovato o non sei autorizzato a modificarlo.";
-                return RedirectToPage();
+                return RedirectToPage(new { p = CurrentPage });
             }
 
             comicToUpdate.Title = updatedComic.Title;
@@ -166,7 +196,7 @@ namespace ComicCollector.Pages.Collection
                 IsError = true;
                 StatusMessage = "Errore di concorrenza durante l'aggiornamento. Il fumetto potrebbe essere stato modificato da un altro processo. Riprova.";
                 _logger.LogError("DbUpdateConcurrencyException for comic ID {ComicId}", comicToUpdate.ComicCollectorId);
-                await OnGetAsync(); // Ricarica i dati freschi
+                await OnGetAsync(CurrentPage); // Ricarica i dati freschi
                 return Page();
             }
             catch (Exception ex)
@@ -174,11 +204,11 @@ namespace ComicCollector.Pages.Collection
                 IsError = true;
                 StatusMessage = "Si è verificato un errore imprevisto durante l'aggiornamento.";
                 _logger.LogError(ex, "Error updating comic ID {ComicId}", comicToUpdate.ComicCollectorId);
-                await OnGetAsync();
+                await OnGetAsync(CurrentPage);
                 return Page();
             }
 
-            return RedirectToPage();
+            return RedirectToPage(new { p = CurrentPage }); // Redirect to current page
         }
 
         public async Task<IActionResult> OnPostDeleteComicAsync(int comicIdToDelete)
@@ -193,7 +223,7 @@ namespace ComicCollector.Pages.Collection
             {
                 IsError = true;
                 StatusMessage = "Fumetto non trovato o non sei autorizzato a eliminarlo.";
-                return RedirectToPage();
+                return RedirectToPage(new { p = CurrentPage });
             }
 
             _context.Comics.Remove(comicToDelete);
@@ -201,7 +231,7 @@ namespace ComicCollector.Pages.Collection
 
             IsError = false;
             StatusMessage = $"'{comicToDelete.Title}' rimosso dalla collezione.";
-            return RedirectToPage();
+            return RedirectToPage(new { p = CurrentPage }); // Redirect to current page or page 1
         }
 
         public async Task<IActionResult> OnPostAddToCollectionFromDiscoverAsync(
@@ -266,6 +296,8 @@ namespace ComicCollector.Pages.Collection
 
             TempData["StatusMessage"] = $"'{title}' aggiunto alla tua collezione!";
             TempData["IsError"] = false;
+            // Decide if redirecting to Discover or Collection, and which page
+            // For now, redirecting to Discover as per original logic
             return RedirectToPage("/Discover/Index", new { SearchQuery = TempData["LastSearchQuery"] ?? "" });
         }
     }

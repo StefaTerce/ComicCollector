@@ -1,0 +1,51 @@
+@model ComicCollector.Models.Comic
+@{
+    var defaultCoverPlaceholder = "https://via.placeholder.com/300x450/e9ecef/6c757d?text=Copertina+N/D";
+}
+<div class="col">
+    <div class="card h-100 shadow-sm">
+        <div class="row g-0 h-100">
+            <div class="col-4 col-sm-5">
+                <img src="@(string.IsNullOrEmpty(Model.CoverImage) ? defaultCoverPlaceholder : Model.CoverImage)"
+                     onerror="this.onerror=null;this.src='@defaultCoverPlaceholder';"
+                     class="img-fluid rounded-start w-100 h-100" alt="Copertina @Model.Title" style="object-fit: cover;">
+            </div>
+            <div class="col-8 col-sm-7 d-flex flex-column">
+                <div class="card-body p-3">
+                    <h6 class="card-title text-truncate mb-1" title="@Model.Title">@Model.Title</h6>
+                    <p class="card-text text-muted extra-small mb-1 text-truncate" title="@Model.Series">
+                        @Model.Series @if (Model.IssueNumber.HasValue && Model.IssueNumber > 0)
+                        {
+                            <text>#@Model.IssueNumber</text>
+                        }
+                    </p>
+                    <p class="card-text extra-small mb-1 text-truncate" title="@Model.Author"><i class="bi bi-person"></i> @(Model.Author ?? "N/A")</p>
+                    <p class="card-text extra-small text-muted mb-2">
+                        <i class="bi bi-calendar3"></i> @Model.PublicationDate.ToString("MMM yyyy")
+                    </p>
+                    <p class="card-text extra-small description-truncate-results d-none d-sm-block">
+                        @(string.IsNullOrEmpty(Model.Description) ? "Nessuna descrizione." : Model.Description)
+                    </p>
+                </div>
+                <div class="card-footer bg-transparent border-0 p-3 pt-0 mt-auto">
+                    <form method="post" asp-page="/Collection/Index" asp-page-handler="AddToCollectionFromDiscover" class="d-grid">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="title" value="@Model.Title" />
+                        <input type="hidden" name="series" value="@Model.Series" />
+                        <input type="hidden" name="issueNumber" value="@(Model.IssueNumber ?? 0)" />
+                        <input type="hidden" name="author" value="@(Model.Author ?? "N/A")" />
+                        <input type="hidden" name="publisher" value="@(Model.Publisher ?? "N/A")" />
+                        <input type="hidden" name="publicationDateStr" value="@Model.PublicationDate.ToString("o")" />
+                        <input type="hidden" name="coverImage" value="@Model.CoverImage" />
+                        <input type="hidden" name="description" value="@(Model.Description ?? "")" />
+                        <input type="hidden" name="source" value="@Model.Source" />
+                        <input type="hidden" name="sourceId" value="@Model.SourceId" />
+                        <button type="submit" class="btn btn-sm btn-success w-100" title="Aggiungi alla collezione">
+                            <i class="bi bi-plus-circle"></i> Aggiungi
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
