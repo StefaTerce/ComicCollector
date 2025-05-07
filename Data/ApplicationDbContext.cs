@@ -1,7 +1,7 @@
-﻿using ComicCollector.Models;
+﻿    using ComicCollector.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-
+Fix
 namespace ComicCollector.Data
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
