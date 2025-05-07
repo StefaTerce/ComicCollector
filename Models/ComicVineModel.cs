@@ -34,31 +34,31 @@ namespace ComicCollector.Models
     public class ComicVineIssue
     {
         [JsonPropertyName("id")]
-        public int Id { get; set; } // Questo sarà il nostro SourceId per ComicVine
+        public int Id { get; set; }
 
         [JsonPropertyName("name")]
-        public string Name { get; set; } // Titolo del fumetto
+        public string Name { get; set; }
 
         [JsonPropertyName("issue_number")]
         public string IssueNumber { get; set; }
 
         [JsonPropertyName("description")]
-        public string Description { get; set; } // HTML description
+        public string Description { get; set; }
 
         [JsonPropertyName("image")]
         public ComicVineImage Image { get; set; }
 
         [JsonPropertyName("volume")]
-        public ComicVineVolume Volume { get; set; } // Da qui prendiamo la Serie
+        public ComicVineVolume Volume { get; set; }
 
         [JsonPropertyName("person_credits")]
-        public List<ComicVinePersonCredit> PersonCredits { get; set; } // Autori, artisti, etc.
+        public List<ComicVinePersonCredit> PersonCredits { get; set; }
 
         [JsonPropertyName("cover_date")]
-        public string CoverDate { get; set; } // Data di copertina (es. "YYYY-MM-DD" o "YYYY-MM-00")
+        public string CoverDate { get; set; }
 
         [JsonPropertyName("store_date")]
-        public string StoreDate { get; set; } // Data di uscita nei negozi
+        public string StoreDate { get; set; }
 
         [JsonPropertyName("date_added")]
         public DateTime? DateAdded { get; set; }
@@ -73,7 +73,7 @@ namespace ComicCollector.Models
         public string OriginalUrl { get; set; }
 
         [JsonPropertyName("small_url")]
-        public string SmallUrl { get; set; } // Buona opzione per la copertina
+        public string SmallUrl { get; set; }
 
         [JsonPropertyName("medium_url")]
         public string MediumUrl { get; set; }
@@ -91,7 +91,7 @@ namespace ComicCollector.Models
         public int Id { get; set; }
 
         [JsonPropertyName("name")]
-        public string Name { get; set; } // Nome della serie/volume
+        public string Name { get; set; }
     }
 
     public class ComicVinePersonCredit
@@ -100,20 +100,22 @@ namespace ComicCollector.Models
         public int Id { get; set; }
 
         [JsonPropertyName("name")]
-        public string Name { get; set; } // Nome della persona
+        public string Name { get; set; }
 
         [JsonPropertyName("role")]
-        public string Role { get; set; } // Es. "writer", "artist", "penciller"
+        public string Role { get; set; }
     }
 
     // Classe per la query di ricerca
     public class ComicVineSearchQuery
     {
         public string Query { get; set; }
-        public string Resources { get; set; } = "issue"; // Cerchiamo specifici albi (issues)
+        public string Resources { get; set; } = "issue";
         public int Limit { get; set; } = 20;
         public int Page { get; set; } = 1;
-        // Campi che vogliamo ricevere per ottimizzare la risposta
         public string FieldList { get; set; } = "id,name,issue_number,description,image,volume,person_credits,cover_date,store_date";
+
+        // AGGIUNGI QUESTA PROPRIETÀ SE MANCA
+        public string Sort { get; set; } // Es. "date_added:desc", "name:asc"
     }
 }

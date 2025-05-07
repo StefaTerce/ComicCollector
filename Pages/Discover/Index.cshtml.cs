@@ -5,7 +5,7 @@ using ComicCollector.Services;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
-using System.Linq; // Per .Any()
+using System.Linq;
 
 namespace ComicCollector.Pages.Discover
 {
@@ -15,6 +15,10 @@ namespace ComicCollector.Pages.Discover
         private readonly MangaDexService _mangaDexService;
         private readonly ILogger<IndexModel> _logger;
         private readonly SessionInfoService _sessionInfo;
+
+        private const int FEATURED_ITEMS_PER_SOURCE = 10; // Quanti elementi caricare per fonte per i "featured"
+        private const int MAX_FEATURED_ITEMS_DISPLAY = 18; // Quanti elementi totali mostrare nella UI per i "featured"
+
 
         [BindProperty(SupportsGet = true)]
         public string SearchQuery { get; set; }
@@ -29,7 +33,7 @@ namespace ComicCollector.Pages.Discover
         public List<MangaViewModel> MangaDexResults { get; set; } = new List<MangaViewModel>();
         public bool ShowSearchResults { get; set; } = false;
 
-        public List<Comic> NewReleases { get; set; } = new List<Comic>();
+        public List<object> FeaturedItems { get; set; } = new List<object>();
 
         [TempData]
         public string StatusMessage { get; set; }
@@ -51,7 +55,11 @@ namespace ComicCollector.Pages.Discover
 
         public async Task OnGetAsync()
         {
-            _sessionInfo.LogSessionInfo("Discover/Index");
+            // Log session info at the beginning of OnGet
+            _sessionInfo.LogSessionInfo("Discover/Index - OnGetAsync Start");
+            // Explicit log of current session values as requested
+            _logger.LogInformation($"Session Info Check - UTC Time: {_sessionInfo.GetCurrentUtcDateTime()} | User: {_sessionInfo.GetSessionUserName()} (ID: {_sessionInfo.GetCurrentUserId()})");
+
 
             if (!string.IsNullOrWhiteSpace(SearchQuery))
             {
@@ -60,14 +68,17 @@ namespace ComicCollector.Pages.Discover
             }
             else
             {
-                ShowSearchResults = false;
+                ShowSearchResults = false; // Ensure search results are not shown if no query
                 await LoadFeaturedContentAsync();
             }
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
-            _sessionInfo.LogSessionInfo("Discover/Index - POST Search");
+            // Log session info at the beginning of OnPost
+            _sessionInfo.LogSessionInfo("Discover/Index - OnPostAsync Start");
+            _logger.LogInformation($"Session Info Check POST - UTC Time: {_sessionInfo.GetCurrentUtcDateTime()} | User: {_sessionInfo.GetSessionUserName()} (ID: {_sessionInfo.GetCurrentUserId()})");
+
             ShowSearchResults = true;
             TempData["LastSearchQuery"] = SearchQuery;
 
@@ -103,7 +114,7 @@ namespace ComicCollector.Pages.Discover
 
             if (SearchComicVine)
             {
-                searchTasks.Add(SearchComicVineAsync());
+                searchTasks.Add(SearchComicVineAsync(isFeaturedSearch: false));
             }
             else
             {
@@ -112,7 +123,7 @@ namespace ComicCollector.Pages.Discover
 
             if (SearchMangaDex)
             {
-                searchTasks.Add(SearchMangaDexAsync());
+                searchTasks.Add(SearchMangaDexAsync(isFeaturedSearch: false));
             }
             else
             {
@@ -125,128 +136,128 @@ namespace ComicCollector.Pages.Discover
             }
         }
 
-        private async Task SearchComicVineAsync()
+        private async Task SearchComicVineAsync(bool isFeaturedSearch)
         {
             try
             {
-                var query = new ComicVineSearchQuery { Query = SearchQuery, Limit = 12 };
-                ComicVineResults = await _comicVineService.SearchComicsAsync(query);
-                _logger.LogInformation($"Found {ComicVineResults.Count} comics from ComicVine for '{SearchQuery}'.");
+                var query = new ComicVineSearchQuery
+                {
+                    Query = isFeaturedSearch ? "" : SearchQuery, // Query vuota per featured, altrimenti la query dell'utente
+                    Limit = isFeaturedSearch ? FEATURED_ITEMS_PER_SOURCE : 12,
+                    // Per featured, potresti voler ordinare per 'date_added:desc' o 'store_date:desc'
+                    // Questo richiederebbe di estendere ComicVineSearchQuery e il servizio per gestire 'sort'
+                    // FieldList = "id,name,image,description,issue_number,volume,person_credits,cover_date,store_date" // Già nel modello
+                };
+                var results = await _comicVineService.SearchComicsAsync(query);
+                if (isFeaturedSearch)
+                {
+                    lock (FeaturedItems) { FeaturedItems.AddRange(results); }
+                }
+                else
+                {
+                    ComicVineResults = results;
+                }
+                _logger.LogInformation($"Found {results.Count} comics from ComicVine for '{(isFeaturedSearch ? "featured" : SearchQuery)}'.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"ComicVine search error for '{SearchQuery}'.");
-                ComicVineResults = new List<Comic>();
-                StatusMessage = "Errore durante la ricerca su ComicVine.";
-                IsError = true;
+                _logger.LogError(ex, $"ComicVine search error for '{(isFeaturedSearch ? "featured" : SearchQuery)}'.");
+                if (!isFeaturedSearch)
+                {
+                    ComicVineResults = new List<Comic>();
+                    StatusMessage = "Errore durante la ricerca su ComicVine.";
+                    IsError = true;
+                }
             }
         }
 
-        private async Task SearchMangaDexAsync()
+        private async Task SearchMangaDexAsync(bool isFeaturedSearch)
         {
             try
             {
-                var query = new MangaDexSearchQuery { Title = SearchQuery, Limit = 12 };
-                MangaDexResults = await _mangaDexService.SearchMangaAsync(query);
-
-                foreach (var manga in MangaDexResults)
+                var query = new MangaDexSearchQuery
                 {
-                    // Tenta di ottenere l'URL della copertina. 
-                    // Questa logica è semplificata; GetMangaDexRelationshipsAsync non è implementato per fare una chiamata separata.
-                    // Il MangaDexService.GetCoverUrlAsync ora fa la chiamata API necessaria.
-                    var mangaRelationships = await GetMangaDexRelationshipsAsync(manga.Id); // Questo metodo è un placeholder
-                    var coverRel = mangaRelationships?.FirstOrDefault(r => r.Type == "cover_art");
+                    Title = isFeaturedSearch ? "" : SearchQuery, // Titolo vuoto per featured
+                    Limit = isFeaturedSearch ? FEATURED_ITEMS_PER_SOURCE : 12,
+                    OrderCreatedAt = isFeaturedSearch ? "desc" : null, // Ordina per recenti solo per featured
+                    Includes = "cover_art,author,artist"
+                };
+                var results = await _mangaDexService.SearchMangaAsync(query);
 
-                    if (coverRel != null && !string.IsNullOrEmpty(coverRel.Id))
+                // Recupera gli URL delle copertine per tutti i risultati (sia featured che ricerca normale)
+                // Questo può essere intensivo se ci sono molti risultati.
+                foreach (var manga in results)
+                {
+                    if (string.IsNullOrEmpty(manga.CoverImageUrl)) // Prova a caricare solo se non già presente
                     {
-                        manga.CoverImageUrl = await _mangaDexService.GetCoverUrlAsync(manga.Id, coverRel.Id);
-                    }
-                    else if (!string.IsNullOrEmpty(manga.Id)) // Fallback se la relazione non è trovata direttamente
-                    {
-                        // Prova a cercare la relazione di copertina se non è stata inclusa o trovata subito
-                        // Questo è un tentativo, potrebbe essere necessario un approccio più robusto
-                        var tempMangaData = new MangaDexManga { Id = manga.Id, Relationships = await FetchMangaRelationshipsAsync(manga.Id) };
-                        var actualCoverRel = tempMangaData.Relationships?.FirstOrDefault(r => r.Type == "cover_art");
-                        if (actualCoverRel != null && !string.IsNullOrEmpty(actualCoverRel.Id))
+                        // Il MangaDexService ora dovrebbe tentare di ottenere il coverId durante SearchMangaAsync
+                        // e GetCoverUrlAsync lo userà.
+                        // Per i featured, vogliamo assicurarci che le copertine siano caricate.
+                        var mangaRelationships = await FetchMangaRelationshipsAsync(manga.Id); // Questo è ancora un placeholder
+                        var coverRel = mangaRelationships?.FirstOrDefault(r => r.Type == "cover_art");
+                        // Se SearchMangaAsync non ha popolato coverRel in modo utile, cerchiamo di nuovo.
+                        if (coverRel == null)
                         {
-                            manga.CoverImageUrl = await _mangaDexService.GetCoverUrlAsync(manga.Id, actualCoverRel.Id);
+                            var tempMangaData = new MangaDexManga { Id = manga.Id, Relationships = await FetchMangaRelationshipsAsync(manga.Id, true) };
+                            coverRel = tempMangaData.Relationships?.FirstOrDefault(r => r.Type == "cover_art");
+                        }
+
+                        if (coverRel != null && !string.IsNullOrEmpty(coverRel.Id))
+                        {
+                            manga.CoverImageUrl = await _mangaDexService.GetCoverUrlAsync(manga.Id, coverRel.Id);
                         }
                     }
                 }
-                _logger.LogInformation($"Found {MangaDexResults.Count} manga from MangaDex for '{SearchQuery}'.");
+
+                if (isFeaturedSearch)
+                {
+                    lock (FeaturedItems) { FeaturedItems.AddRange(results); }
+                }
+                else
+                {
+                    MangaDexResults = results;
+                }
+                _logger.LogInformation($"Found {results.Count} manga from MangaDex for '{(isFeaturedSearch ? "featured" : SearchQuery)}'.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"MangaDex search error for '{SearchQuery}'.");
-                MangaDexResults = new List<MangaViewModel>();
-                StatusMessage = "Errore durante la ricerca su MangaDex.";
-                IsError = true;
+                _logger.LogError(ex, $"MangaDex search error for '{(isFeaturedSearch ? "featured" : SearchQuery)}'.");
+                if (!isFeaturedSearch)
+                {
+                    MangaDexResults = new List<MangaViewModel>();
+                    StatusMessage = "Errore durante la ricerca su MangaDex.";
+                    IsError = true;
+                }
             }
         }
 
-        // Questo metodo è un placeholder e non è completamente implementato per fare una chiamata API separata
-        // per le relazioni se non sono incluse nella ricerca principale.
-        // La logica di recupero della copertina è stata spostata in MangaDexService.GetCoverUrlAsync.
-        private async Task<List<MangaDexRelationship>> GetMangaDexRelationshipsAsync(string mangaId)
+        // Modificato per accettare un flag per forzare una chiamata API se necessario
+        private async Task<List<MangaDexRelationship>> FetchMangaRelationshipsAsync(string mangaId, bool forceApiCall = false)
         {
-            // In una implementazione reale, se le relazioni non sono disponibili tramite 'includes',
-            // dovresti fare una chiamata API a /manga/{mangaId} per ottenerle.
-            // Per questa demo, restituiamo una lista vuota, assumendo che 'includes' abbia funzionato
-            // o che GetCoverUrlAsync in MangaDexService gestirà il recupero.
-            await Task.CompletedTask; // Per evitare warning CS1998
-            return new List<MangaDexRelationship>();
-        }
-
-        // Metodo di esempio per recuperare relazioni se non incluse (non usato attivamente per la copertina ora)
-        private async Task<List<MangaDexRelationship>> FetchMangaRelationshipsAsync(string mangaId)
-        {
-            // Qui dovresti implementare una chiamata HTTP al MangaDexService per ottenere i dettagli del manga,
-            // inclusi i suoi relationships, se non sono stati forniti dalla query di ricerca iniziale.
-            // Esempio: var mangaDetails = await _mangaDexService.GetMangaDetailsByIdAsync(mangaId);
-            // return mangaDetails?.Relationships ?? new List<MangaDexRelationship>();
+            // Se 'forceApiCall' è true, o se le relazioni non sono state ottenute tramite 'includes',
+            // si dovrebbe fare una chiamata a /manga/{mangaId}?includes[]=cover_art,author,artist
+            // Per ora, questo metodo rimane un placeholder perché la logica di recupero copertina
+            // è principalmente in MangaDexService.GetCoverUrlAsync.
+            // Il flag 'forceApiCall' è per un'eventuale implementazione futura più granulare.
             await Task.CompletedTask;
             return new List<MangaDexRelationship>();
         }
 
         private async Task LoadFeaturedContentAsync()
         {
-            try
+            _logger.LogInformation("Loading featured content for Discover page...");
+            FeaturedItems = new List<object>(); // Resetta prima di caricare
+            var tasks = new List<Task>
             {
-                NewReleases = CreateSampleComicsForFeatured(5, "New Release"); // Utilizza il metodo corretto
-                // In futuro, potresti voler caricare dati reali qui, ad esempio:
-                // var query = new ComicVineSearchQuery { Limit = 5, /* ...altri filtri/sort per novità... */ };
-                // NewReleases = await _comicVineService.SearchComicsAsync(query);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error loading featured content (New Releases).");
-                NewReleases = new List<Comic>();
-            }
-        }
+                SearchComicVineAsync(isFeaturedSearch: true),
+                SearchMangaDexAsync(isFeaturedSearch: true)
+            };
 
-        // Metodo corretto per creare dati di esempio per la sezione "featured"
-        private List<Comic> CreateSampleComicsForFeatured(int count, string type) // Riga 214 (circa)
-        {
-            var comics = new List<Comic>();
+            await Task.WhenAll(tasks);
+
             var random = new Random();
-            for (int i = 1; i <= count; i++)
-            {
-                comics.Add(new Comic
-                {
-                    // CORREZIONE: Usa SourceId per ID da API fittizia
-                    SourceId = $"sample-feat-{type.ToLower().Replace(" ", "-")}-{i}", // RIGA 223 (circa) - CORRETTA
-                    Title = $"{type} Example Vol. {i}",
-                    Series = $"{type} Series Example",
-                    IssueNumber = i,
-                    Author = "Featured Author Name",
-                    Publisher = "Featured Publisher Ltd.",
-                    PublicationDate = DateTime.Now.AddDays(-random.Next(1, 60)),
-                    CoverImage = $"https://via.placeholder.com/300x450/5dade2/ffffff?text={Uri.EscapeDataString(type)}+%23{i}",
-                    Source = "ComicVine", // O un'altra fonte se stai simulando quella
-                    Description = $"Questa è una descrizione di esempio per il fumetto '{type} Example Vol. {i}'. Contiene dettagli sulla trama e sui personaggi."
-                });
-            }
-            return comics;
+            FeaturedItems = FeaturedItems.OrderBy(x => random.Next()).Take(MAX_FEATURED_ITEMS_DISPLAY).ToList();
+            _logger.LogInformation($"Total featured items after mixing and taking max: {FeaturedItems.Count}");
         }
     }
 }
