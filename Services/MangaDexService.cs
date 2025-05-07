@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Web;
 using ComicCollector.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options; // For IOptionsMonitor
 
 namespace ComicCollector.Services
 {
@@ -15,14 +16,17 @@ namespace ComicCollector.Services
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<MangaDexService> _logger;
+        private readonly IOptionsMonitor<ApiKeySettings> _apiKeySettings;
         private readonly string _baseUrl = "https://api.mangadex.org";
         private readonly string _coverBaseUrl = "https://uploads.mangadex.org/covers"; // Corretto
+        private string? _apiKey => _apiKeySettings.CurrentValue.MangaDexApiKey; // Use MangaDexApiKey
 
-        public MangaDexService(HttpClient httpClient, ILogger<MangaDexService> logger)
+        public MangaDexService(HttpClient httpClient, ILogger<MangaDexService> logger, IOptionsMonitor<ApiKeySettings> apiKeySettings)
         {
             _httpClient = httpClient;
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("ComicCollectorApp/1.0 (+http://localhost; StefaTerce)");
             _logger = logger;
+            _apiKeySettings = apiKeySettings;
         }
 
         private string GetPreferredText(MangaDexMultiLangText multiLangText, string preferredLang = "en")

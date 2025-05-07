@@ -10,6 +10,7 @@ using ComicCollector.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
+using Microsoft.Extensions.Options; // For IOptionsMonitor
 
 namespace ComicCollector.Services
 {
@@ -17,14 +18,16 @@ namespace ComicCollector.Services
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<ComicVineService> _logger;
-        private readonly string _apiKey = "b609648fe9073f7ac39915d338fce6f9bfac4971";
+        private readonly IOptionsMonitor<ApiKeySettings> _apiKeySettings;
+        private string? _apiKey => _apiKeySettings.CurrentValue.ComicVineApiKey;
         private readonly string _baseUrl = "https://comicvine.gamespot.com/api";
 
-        public ComicVineService(HttpClient httpClient, ILogger<ComicVineService> logger)
+        public ComicVineService(HttpClient httpClient, ILogger<ComicVineService> logger, IOptionsMonitor<ApiKeySettings> apiKeySettings)
         {
             _httpClient = httpClient;
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("ComicCollectorApp/1.0 (+http://localhost; StefaTerce)");
             _logger = logger;
+            _apiKeySettings = apiKeySettings;
         }
 
         private DateTime? ParseComicVineDate(string dateStr)
@@ -54,6 +57,12 @@ namespace ComicCollector.Services
             var comics = new List<Comic>();
             try
             {
+                if (string.IsNullOrWhiteSpace(_apiKey))
+                {
+                    _logger.LogWarning("ComicVine API key is not configured.");
+                    return comics;
+                }
+
                 var queryParams = HttpUtility.ParseQueryString(string.Empty);
                 queryParams["api_key"] = _apiKey;
                 queryParams["format"] = "json";

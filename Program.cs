@@ -16,16 +16,19 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = true;
     options.Password.RequiredLength = 8;
-    options.Password.RequireNonAlphanumeric = false; // Modificato per semplicità, puoi cambiarlo
+    options.Password.RequireNonAlphanumeric = false; // Modificato per semplicitï¿½, puoi cambiarlo
     options.Password.RequireUppercase = true;
     options.Password.RequireLowercase = true;
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.Lockout.MaxFailedAccessAttempts = 5;
     options.User.RequireUniqueEmail = true;
-    options.SignIn.RequireConfirmedEmail = false; // Modificato per semplicità
+    options.SignIn.RequireConfirmedEmail = false; // Modificato per semplicitï¿½
 })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
+
+// Configure ApiKeySettings
+builder.Services.Configure<ComicCollector.Models.ApiKeySettings>(builder.Configuration.GetSection("ApiKeys"));
 
 builder.Services.AddSession(options =>
 {
@@ -59,7 +62,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Account/Logout"); // Logout deve essere accessibile
     options.Conventions.AuthorizeFolder("/Admin", "RequireAdminRole");
     options.Conventions.AuthorizeFolder("/Collection", "RequireUserRole");
-    options.Conventions.AllowAnonymousToPage("/Discover/Index"); // La pagina Discover può essere pubblica
+    options.Conventions.AllowAnonymousToPage("/Discover/Index"); // La pagina Discover puï¿½ essere pubblica
 });
 
 // Registrazione Servizi HTTP Client e Servizi API
@@ -106,7 +109,7 @@ app.Use(async (context, next) =>
             context.Response.Redirect("/Account/Login");
         }
         // Se autenticato ma 403, potrebbe essere reindirizzato alla home o a una pagina "non autorizzato" specifica
-        // Per ora, se è 403 e autenticato, non facciamo nulla qui, Identity gestirà AccessDeniedPath
+        // Per ora, se ï¿½ 403 e autenticato, non facciamo nulla qui, Identity gestirï¿½ AccessDeniedPath
     }
 });
 
@@ -164,7 +167,7 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Si è verificato un errore durante il seeding del database.");
+        logger.LogError(ex, "Si ï¿½ verificato un errore durante il seeding del database.");
     }
 }
 

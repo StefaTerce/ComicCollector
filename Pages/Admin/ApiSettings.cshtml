@@ -1,0 +1,46 @@
+@page
+@model ComicCollector.Pages.Admin.ApiSettingsModel
+@{
+    ViewData["Title"] = "Impostazioni API";
+}
+
+<div class="container py-5">
+    <h1 class="mb-4"><i class="bi bi-sliders me-2"></i>Impostazioni API</h1>
+
+    @if (TempData["StatusMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["StatusMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Configura API Keys</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="mb-3">
+                    <label asp-for="ApiKeySettings.ComicVineApiKey" class="form-label">ComicVine API Key</label>
+                    <input asp-for="ApiKeySettings.ComicVineApiKey" class="form-control" />
+                    <span asp-validation-for="ApiKeySettings.ComicVineApiKey" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ApiKeySettings.MangaDexApiKey" class="form-label">MangaDex API Key (Opzionale)</label>
+                    <input asp-for="ApiKeySettings.MangaDexApiKey" class="form-control" />
+                    <span asp-validation-for="ApiKeySettings.MangaDexApiKey" class="text-danger"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-2"></i>Salva Impostazioni</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
