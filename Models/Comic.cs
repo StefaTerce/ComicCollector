@@ -10,7 +10,7 @@ namespace ComicCollector.Models
         public int ComicCollectorId { get; set; }
 
         // ID dall'API esterna (ComicVine ID, MangaDex ID) - Può essere stringa per MangaDex
-        public string SourceId { get; set; }
+        public string? SourceId { get; set; }
 
         [Required(ErrorMessage = "Il titolo è richiesto")]
         public string Title { get; set; }
@@ -24,7 +24,7 @@ namespace ComicCollector.Models
         [Required(ErrorMessage = "L'autore è richiesto")]
         public string Author { get; set; }
 
-        public string Publisher { get; set; } // Può non essere sempre presente
+        public string? Publisher { get; set; } // Può non essere sempre presente
 
         [Required(ErrorMessage = "La data di pubblicazione è richiesta")]
         [DataType(DataType.Date)]
@@ -32,13 +32,13 @@ namespace ComicCollector.Models
 
         public int? PageCount { get; set; }
 
-        public string CoverImage { get; set; } // URL dell'immagine di copertina
+        public string? CoverImage { get; set; } // URL dell'immagine di copertina
 
         [MaxLength(2000, ErrorMessage = "La descrizione non può superare i 2000 caratteri.")]
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         [MaxLength(1000, ErrorMessage = "Le note non possono superare i 1000 caratteri.")]
-        public string Notes { get; set; } // Note personali dell'utente
+        public string? Notes { get; set; } // Note personali dell'utente
 
         // Foreign Key per ApplicationUser
         [Required]

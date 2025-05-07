@@ -69,12 +69,15 @@ namespace ComicCollector.Pages.Collection
             {
                 AllSeries = new HashSet<string>(UserComics.Select(c => c.Series).Where(s => !string.IsNullOrEmpty(s)).Distinct(), StringComparer.OrdinalIgnoreCase);
                 AllPublishers = new HashSet<string>(UserComics.Select(c => c.Publisher).Where(p => !string.IsNullOrEmpty(p)).Distinct(), StringComparer.OrdinalIgnoreCase);
-                AuthorsCount = UserComics.Select(c => c.Author).Where(a => !string.IsNullOrEmpty(a)).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+                AuthorsCount = UserComics.Select(c => c.Author)
+                                         .Where(a => !string.IsNullOrEmpty(a))
+                                         .Distinct(StringComparer.OrdinalIgnoreCase)
+                                         .Count();
             }
             else
             {
-                AllSeries = new HashSet<string>();
-                AllPublishers = new HashSet<string>();
+                AllSeries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                AllPublishers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 AuthorsCount = 0;
             }
         }

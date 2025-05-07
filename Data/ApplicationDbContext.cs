@@ -1,7 +1,7 @@
-﻿    using ComicCollector.Models;
+﻿using ComicCollector.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-Fix
+
 namespace ComicCollector.Data
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
@@ -35,8 +35,9 @@ namespace ComicCollector.Data
                 entity.Property(c => c.IssueNumber).IsRequired(false);
                 entity.Property(c => c.PageCount).IsRequired(false);
                 entity.Property(c => c.Publisher).IsRequired(false);
-                entity.Property(c => c.Description).HasMaxLength(2000);
-                entity.Property(c => c.Notes).HasMaxLength(1000);
+                entity.Property(c => c.CoverImage).IsRequired(false); // Ensure CoverImage can be null
+                entity.Property(c => c.Description).HasMaxLength(2000).IsRequired(false); // Ensure Description can be null
+                entity.Property(c => c.Notes).HasMaxLength(1000).IsRequired(false);       // Ensure Notes can be null
                 entity.Property(c => c.Source).HasMaxLength(50);
                 entity.Property(c => c.SourceId).IsRequired(false); // SourceId può essere null per aggiunte manuali ("Local")
             });
