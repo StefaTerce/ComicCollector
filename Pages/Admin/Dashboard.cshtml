@@ -39,11 +39,6 @@
                     <h2 class="mt-3">@Model.TotalCollections</h2>
                     <p class="mb-0">Collezioni totali create</p>
                 </div>
-                <div class="card-footer bg-transparent border-0">
-                    <a href="#" class="text-white text-decoration-none">
-                        Vedi tutte <i class="bi bi-arrow-right"></i>
-                    </a>
-                </div>
             </div>
         </div>
 
@@ -57,11 +52,6 @@
                     <h2 class="mt-3">@Model.TotalComics</h2>
                     <p class="mb-0">Fumetti totali catalogati</p>
                 </div>
-                <div class="card-footer bg-transparent border-0">
-                    <a href="#" class="text-white text-decoration-none">
-                        Dettagli <i class="bi bi-arrow-right"></i>
-                    </a>
-                </div>
             </div>
         </div>
 
@@ -69,17 +59,17 @@
             <div class="card bg-info text-white h-100 shadow-sm">
                 <div class="card-body d-flex flex-column">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="card-title">Sistema</h5>
-                        <i class="bi bi-gear-fill fs-1"></i>
+                        <h5 class="card-title">Impostazioni API</h5>
+                        <i class="bi bi-sliders fs-1"></i>
                     </div>
                     <h2 class="mt-3">
-                        <i class="bi bi-check-circle-fill text-white"></i>
+                        <i class="bi bi-key-fill text-white"></i>
                     </h2>
-                    <p class="mb-0">Sistema operativo</p>
+                    <p class="mb-0">Configura API Keys</p>
                 </div>
                 <div class="card-footer bg-transparent border-0">
-                    <a href="#" class="text-white text-decoration-none">
-                        Impostazioni <i class="bi bi-arrow-right"></i>
+                    <a asp-page="./ApiSettings" class="text-white text-decoration-none">
+                        Vai alle Impostazioni <i class="bi bi-arrow-right"></i>
                     </a>
                 </div>
             </div>
@@ -122,7 +112,7 @@
                                         </td>
                                         <td>@Model.UserRegistrationDates[user.Id]</td>
                                         <td>
-                                            <a href="#" class="btn btn-sm btn-outline-primary">
+                                            <a asp-page="./EditUsers" asp-route-id="@user.Id" class="btn btn-sm btn-outline-primary">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
                                         </td>
@@ -150,24 +140,17 @@
                             </div>
                         </a>
                         <a href="#" class="list-group-item list-group-item-action d-flex align-items-center">
-                            <i class="bi bi-journal-richtext me-3 fs-4 text-success"></i>
-                            <div>
-                                <h6 class="mb-0">Gestione Contenuti</h6>
-                                <small class="text-muted">Gestisci fumetti e collezioni</small>
-                            </div>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action d-flex align-items-center">
                             <i class="bi bi-bar-chart-fill me-3 fs-4 text-warning"></i>
                             <div>
                                 <h6 class="mb-0">Statistiche</h6>
                                 <small class="text-muted">Visualizza report e analisi</small>
                             </div>
                         </a>
-                        <a href="#" class="list-group-item list-group-item-action d-flex align-items-center">
-                            <i class="bi bi-gear-fill me-3 fs-4 text-info"></i>
+                        <a asp-page="./ApiSettings" class="list-group-item list-group-item-action d-flex align-items-center">
+                            <i class="bi bi-sliders me-3 fs-4 text-info"></i>
                             <div>
-                                <h6 class="mb-0">Impostazioni</h6>
-                                <small class="text-muted">Configura il sistema</small>
+                                <h6 class="mb-0">Impostazioni API</h6>
+                                <small class="text-muted">Configura API Keys</small>
                             </div>
                         </a>
                     </div>
