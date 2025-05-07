@@ -151,100 +151,11 @@
                                 <span>@comic.PublicationDate.ToString("MMM yyyy")</span>
                             </div>
                             <div class="btn-group w-100">
-                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#viewComicModal-@comic.ComicCollectorId">
+                                <button class="btn btn-sm btn-outline-primary" onclick="fetchComicDetails(@comic.ComicCollectorId)">
                                     <i class="bi bi-eye"></i> Dettagli
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteComic('@comic.ComicCollectorId')">
                                     <i class="bi bi-trash"></i> Rimuovi
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Modal Dettagli Fumetto -->
-                <div class="modal fade" id="viewComicModal-@comic.ComicCollectorId" tabindex="-1" aria-labelledby="viewComicModalLabel-@comic.ComicCollectorId" aria-hidden="true">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="viewComicModalLabel-@comic.ComicCollectorId">Dettagli: @comic.Title</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="row">
-                                    <div class="col-md-4 text-center">
-                                        @if (!string.IsNullOrEmpty(comic.CoverImage))
-                                        {
-                                            <img src="@comic.CoverImage" class="img-fluid rounded mb-3" alt="@comic.Title" style="max-height: 300px; object-fit: contain;">
-                                        }
-                                        else
-                                        {
-                                            <div class="bg-light text-center py-5 rounded mb-3">
-                                                <i class="bi bi-journal-richtext fs-1 text-muted"></i>
-                                                <p class="text-muted">No Cover</p>
-                                            </div>
-                                        }
-                                    </div>
-                                    <div class="col-md-8">
-                                        <h3>@comic.Title</h3>
-                                        <p class="text-muted">
-                                            @comic.Series
-                                            @if (comic.IssueNumber.HasValue && comic.IssueNumber > 0)
-                                            {
-                                                <text>#@comic.IssueNumber</text>
-                                            }
-                                        </p>
-                                        <dl class="row">
-                                            <dt class="col-sm-4">Autore:</dt>
-                                            <dd class="col-sm-8">@comic.Author</dd>
-
-                                            @if (!string.IsNullOrEmpty(comic.Publisher))
-                                            {
-                                                <dt class="col-sm-4">Editore:</dt>
-                                                <dd class="col-sm-8">@comic.Publisher</dd>
-                                            }
-
-                                            <dt class="col-sm-4">Data Pubblicazione:</dt>
-                                            <dd class="col-sm-8">@comic.PublicationDate.ToString("dd MMMM yyyy")</dd>
-
-                                            @if (comic.PageCount.HasValue && comic.PageCount > 0)
-                                            {
-                                                <dt class="col-sm-4">Pagine:</dt>
-                                                <dd class="col-sm-8">@comic.PageCount</dd>
-                                            }
-
-                                            <dt class="col-sm-4">Fonte Dati:</dt>
-                                            <dd class="col-sm-8">@comic.Source @(comic.SourceId != null ? $" (ID: {comic.SourceId})" : "")</dd>
-
-                                            <dt class="col-sm-4">Aggiunto il:</dt>
-                                            <dd class="col-sm-8">@comic.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</dd>
-
-                                            <dt class="col-sm-4">Ultima Modifica:</dt>
-                                            <dd class="col-sm-8">@comic.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</dd>
-                                        </dl>
-                                    </div>
-                                </div>
-
-                                @if (!string.IsNullOrEmpty(comic.Description))
-                                {
-                                    <div class="mt-3">
-                                        <h5>Descrizione</h5>
-                                        <p style="white-space: pre-wrap;">@comic.Description</p>
-                                    </div>
-                                }
-
-                                @if (!string.IsNullOrEmpty(comic.Notes))
-                                {
-                                    <div class="mt-3">
-                                        <h5>Note Personali</h5>
-                                        <p style="white-space: pre-wrap;">@comic.Notes</p>
-                                    </div>
-                                }
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editComicModal-@comic.ComicCollectorId" data-bs-dismiss="modal">
-                                    <i class="bi bi-pencil me-1"></i>Modifica
                                 </button>
                             </div>
                         </div>
@@ -399,6 +310,66 @@
     }
 </div>
 
+<!-- Modal Dettagli Fumetto (Generic) -->
+<div class="modal fade" id="comicDetailsModal" tabindex="-1" aria-labelledby="comicDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="comicDetailsModalLabel">Dettagli Fumetto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <img id="modalComicCoverImage" src="/images/placeholder_cover.png" class="img-fluid rounded mb-3" alt="Copertina" style="max-height: 300px; object-fit: contain;">
+                    </div>
+                    <div class="col-md-8">
+                        <h3 id="modalComicTitle"></h3>
+                        <p class="text-muted">
+                            <span id="modalComicSeries"></span>
+                            <span id="modalComicIssue"></span>
+                        </p>
+                        <dl class="row">
+                            <dt class="col-sm-4">Autore:</dt>
+                            <dd class="col-sm-8" id="modalComicAuthor"></dd>
+
+                            <dt class="col-sm-4">Editore:</dt>
+                            <dd class="col-sm-8" id="modalComicPublisher"></dd>
+
+                            <dt class="col-sm-4">Data Pubblicazione:</dt>
+                            <dd class="col-sm-8" id="modalComicPublicationDate"></dd>
+
+                            <dt class="col-sm-4">Pagine:</dt>
+                            <dd class="col-sm-8" id="modalComicPageCount"></dd>
+
+                            <dt class="col-sm-4">Fonte Dati:</dt>
+                            <dd class="col-sm-8"><span id="modalComicSource"></span> <span id="modalComicSourceIdInfo"></span></dd>
+                            
+                            <dt class="col-sm-4">Aggiunto il:</dt>
+                            <dd class="col-sm-8" id="modalComicCreatedAt"></dd>
+
+                            <dt class="col-sm-4">Ultima Modifica:</dt>
+                            <dd class="col-sm-8" id="modalComicUpdatedAt"></dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <h5><i class="bi bi-robot me-1"></i>Approfondimenti IA (Gemini)</h5>
+                    <div id="geminiReviewContent" class="p-3 bg-light border rounded">
+                        <p id="modalGeminiReviewSummary">Caricamento recensione...</p>
+                    </div>
+                    <small id="modalEnrichmentStatus" class="text-muted"></small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                 <!-- Future: Add Edit/Delete buttons here if needed, passing comicId -->
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal per aggiungere un fumetto manualmente -->
 <div class="modal fade" id="addComicModal" tabindex="-1" aria-labelledby="addComicModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -524,5 +495,137 @@
                 applyFilters();
             });
         });
+
+        function fetchComicDetails(comicId) {
+            // Reset modal content before fetching new data
+            $('#comicDetailsModalLabel').text('Dettagli Fumetto');
+            $('#modalComicCoverImage').attr('src', '/images/placeholder_cover.png');
+            $('#modalComicTitle').text('');
+            $('#modalComicSeries').text('');
+            $('#modalComicIssue').text('');
+            $('#modalComicAuthor').text('');
+            $('#modalComicPublisher').text('');
+            $('#modalComicPublicationDate').text('');
+            $('#modalComicPageCount').text('');
+            $('#modalComicSource').text('');
+            $('#modalComicSourceIdInfo').text('');
+            $('#modalComicCreatedAt').text('');
+            $('#modalComicUpdatedAt').text('');
+            $('#modalComicDescription').html('');
+            $('#modalComicNotes').text('');
+            $('#modalGeminiReviewSummary').text('Caricamento recensione...');
+            $('#modalEnrichmentStatus').text('');
+            // Clear previous styling for Gemini content
+            $('#geminiReviewContent').html('<p id="modalGeminiReviewSummary">Caricamento recensione...</p>');
+
+            $.ajax({
+                url: `/Collection/Index?handler=ComicDetailsWithGemini&comicId=${comicId}`,
+                method: 'GET',
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("XSRF-TOKEN",
+                        $('input:hidden[name="__RequestVerificationToken"]').val());
+                },
+                success: function (data) {
+                    var comicToDisplay = data.comic || data;
+                    var errorMessage = data.error;
+
+                    $('#comicDetailsModalLabel').text('Dettagli: ' + (comicToDisplay.title || 'Fumetto'));
+                    $('#modalComicCoverImage').attr('src', comicToDisplay.coverImage || '/images/placeholder_cover.png').on('error', function() { $(this).attr('src', '/images/placeholder_cover.png'); });
+                    $('#modalComicTitle').text(comicToDisplay.title || 'N/A');
+                    $('#modalComicSeries').text(comicToDisplay.series || 'N/A');
+                    if (comicToDisplay.issueNumber && parseInt(comicToDisplay.issueNumber) > 0) {
+                        $('#modalComicIssue').text(' #' + comicToDisplay.issueNumber);
+                    } else {
+                        $('#modalComicIssue').text('');
+                    }
+                    $('#modalComicAuthor').text(comicToDisplay.author || 'N/A');
+                    $('#modalComicPublisher').text(comicToDisplay.publisher || 'N/A');
+                    $('#modalComicPublicationDate').text(comicToDisplay.publicationDate ? new Date(comicToDisplay.publicationDate).toLocaleDateString() : 'N/A');
+                    $('#modalComicPageCount').text(comicToDisplay.pageCount || 'N/A');
+                    
+                    $('#modalComicSource').text(comicToDisplay.source || 'N/A');
+                    if (comicToDisplay.sourceId) {
+                        $('#modalComicSourceIdInfo').text('(ID: ' + comicToDisplay.sourceId + ')');
+                    } else {
+                        $('#modalComicSourceIdInfo').text('');
+                    }
+                    $('#modalComicCreatedAt').text(comicToDisplay.createdAt ? new Date(comicToDisplay.createdAt).toLocaleString() : 'N/A');
+                    $('#modalComicUpdatedAt').text(comicToDisplay.updatedAt ? new Date(comicToDisplay.updatedAt).toLocaleString() : 'N/A');
+
+                    $('#modalComicDescription').html(comicToDisplay.description ? comicToDisplay.description.replace(/\n/g, '<br>') : 'Nessuna descrizione.');
+                    $('#modalComicNotes').text(comicToDisplay.notes || 'Nessuna nota.');
+
+                    if (errorMessage) {
+                        $('#modalGeminiReviewSummary').html(`<p class="text-danger">${comicToDisplay.geminiReviewSummary || 'Errore nel recupero della recensione.'}</p>`);
+                        $('#modalEnrichmentStatus').text(errorMessage);
+                    } else {
+                        let reviewHtml = '<p>Recensione non disponibile o API Key non configurata.</p>';
+                        if (comicToDisplay.geminiReviewSummary) {
+                            // Basic parsing for Positive/Negative traits for styling
+                            // This is a simplified parser. For more complex HTML, a more robust solution would be needed.
+                            let summary = comicToDisplay.geminiReviewSummary.replace(/\n/g, '<br>');
+                            summary = summary.replace(/Positive Traits:/gi, '<strong class="text-success">Positive Traits:</strong>');
+                            summary = summary.replace(/Negative Traits:/gi, '<strong class="text-danger">Negative Traits:</strong>');
+                            summary = summary.replace(/\* (.*?)(<br>|$)/gi, '<ul class="list-unstyled ps-3"><li class="mb-1"><i class="bi bi-check-circle-fill text-success me-2"></i>$1</li></ul>'); // Basic positive bullet
+                            // Need to refine bullet logic if positive/negative bullets need different icons or styling based on section
+                            // For now, this is a general approach. A more specific approach would parse sections.
+
+                            // Attempt to differentiate positive and negative bullets if possible by context (very basic)
+                            let sections = comicToDisplay.geminiReviewSummary.split(/Negative Traits:|Positive Traits:/gi);
+                            let formattedSummary = '';
+                            if (comicToDisplay.geminiReviewSummary.includes("Positive Traits:")) {
+                                formattedSummary += '<h6 class="text-success"><i class="bi bi-hand-thumbs-up-fill me-1"></i>Positive Traits:</h6>';
+                                let positiveSection = sections.find(s => comicToDisplay.geminiReviewSummary.indexOf(s) < comicToDisplay.geminiReviewSummary.indexOf("Negative Traits:") && s.trim().length > 0);
+                                if (!positiveSection && sections.length > 1 && comicToDisplay.geminiReviewSummary.indexOf("Positive Traits:") < (comicToDisplay.geminiReviewSummary.indexOf("Negative Traits:") > -1 ? comicToDisplay.geminiReviewSummary.indexOf("Negative Traits:") : Infinity) ) {
+                                   positiveSection = sections[1]; // Assuming first section after "Positive Traits:"
+                                }
+                                if (positiveSection) {
+                                    formattedSummary += '<ul class="list-unstyled ps-3">';
+                                    positiveSection.trim().split(/\n|\* /).forEach(item => {
+                                        if (item.trim()) formattedSummary += `<li class="mb-1"><i class="bi bi-check-circle-fill text-success me-2"></i>${item.trim()}</li>`;
+                                    });
+                                    formattedSummary += '</ul>';
+                                }
+                            }
+
+                            if (comicToDisplay.geminiReviewSummary.includes("Negative Traits:")) {
+                                formattedSummary += '<h6 class="text-danger mt-3"><i class="bi bi-hand-thumbs-down-fill me-1"></i>Negative Traits:</h6>';
+                                let negativeSection = sections.find(s => comicToDisplay.geminiReviewSummary.indexOf(s) > comicToDisplay.geminiReviewSummary.indexOf("Negative Traits:") && s.trim().length > 0);
+                                 if (!negativeSection && sections.length > 0 && comicToDisplay.geminiReviewSummary.indexOf("Negative Traits:") > -1 ) {
+                                   negativeSection = sections[sections.length-1]; // Assuming last section after "Negative Traits:"
+                                }
+                                if (negativeSection) {
+                                    formattedSummary += '<ul class="list-unstyled ps-3">';
+                                    negativeSection.trim().split(/\n|\* /).forEach(item => {
+                                        if (item.trim()) formattedSummary += `<li class="mb-1"><i class="bi bi-x-circle-fill text-danger me-2"></i>${item.trim()}</li>`;
+                                    });
+                                    formattedSummary += '</ul>';
+                                }
+                            }
+                             if (!formattedSummary && comicToDisplay.geminiReviewSummary) { // Fallback for non-structured text
+                                formattedSummary = comicToDisplay.geminiReviewSummary.replace(/\n/g, '<br>');
+                            }
+
+                            reviewHtml = formattedSummary || comicToDisplay.geminiReviewSummary.replace(/\n/g, '<br>');
+                        }
+                        $('#geminiReviewContent').html(reviewHtml);
+
+                        if (comicToDisplay.wasEnriched) {
+                            $('#modalEnrichmentStatus').text('Alcuni dati sono stati aggiornati da Gemini.');
+                        } else {
+                            $('#modalEnrichmentStatus').text('Nessun dato aggiuntivo da Gemini o dati già completi.');
+                        }
+                    }
+
+                    $('#comicDetailsModal').modal('show');
+                },
+                error: function (xhr, status, error) {
+                    console.error('Errore nel recupero dei dettagli del fumetto:', error, xhr.responseText);
+                    $('#modalGeminiReviewSummary').text('Errore AJAX nel caricare i dettagli.');
+                    $('#modalEnrichmentStatus').text('Consultare la console per dettagli sull\'errore.');
+                    $('#comicDetailsModal').modal('show'); // Mostra il modale anche in caso di errore per visualizzare il messaggio
+                }
+            });
+        }
     </script>
 }

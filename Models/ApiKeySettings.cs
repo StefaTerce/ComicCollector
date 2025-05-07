@@ -4,5 +4,6 @@ namespace ComicCollector.Models
     {
         public string? ComicVineApiKey { get; set; }
         public string? MangaDexApiKey { get; set; }
+        public string? GeminiApiKey { get; set; } // Added for Gemini
     }
 }

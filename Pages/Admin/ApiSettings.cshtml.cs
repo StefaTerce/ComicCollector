@@ -65,6 +65,7 @@ namespace ComicCollector.Pages.Admin
                         newAppSettings.WriteStartObject();
                         newAppSettings.WriteString("ComicVineApiKey", ApiKeySettings.ComicVineApiKey);
                         newAppSettings.WriteString("MangaDexApiKey", ApiKeySettings.MangaDexApiKey);
+                        newAppSettings.WriteString("GeminiApiKey", ApiKeySettings.GeminiApiKey); // Added Gemini
                         newAppSettings.WriteEndObject();
                     }
                     else
@@ -79,6 +80,7 @@ namespace ComicCollector.Pages.Admin
                     newAppSettings.WriteStartObject();
                     newAppSettings.WriteString("ComicVineApiKey", ApiKeySettings.ComicVineApiKey);
                     newAppSettings.WriteString("MangaDexApiKey", ApiKeySettings.MangaDexApiKey);
+                    newAppSettings.WriteString("GeminiApiKey", ApiKeySettings.GeminiApiKey); // Added Gemini
                     newAppSettings.WriteEndObject();
                 }
 

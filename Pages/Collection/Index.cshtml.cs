@@ -20,6 +20,7 @@ namespace ComicCollector.Pages.Collection
         private readonly ApplicationDbContext _context;
         private readonly ILogger<IndexModel> _logger;
         private readonly SessionInfoService _sessionInfo;
+        private readonly GeminiService _geminiService; // Added GeminiService
 
         public List<Comic> UserComics { get; set; }
         public HashSet<string> AllSeries { get; set; }
@@ -43,12 +44,14 @@ namespace ComicCollector.Pages.Collection
             UserManager<ApplicationUser> userManager,
             ApplicationDbContext context,
             ILogger<IndexModel> logger,
-            SessionInfoService sessionInfo)
+            SessionInfoService sessionInfo,
+            GeminiService geminiService) // Added GeminiService
         {
             _userManager = userManager;
             _context = context;
             _logger = logger;
             _sessionInfo = sessionInfo;
+            _geminiService = geminiService; // Added GeminiService
             UserComics = new List<Comic>();
             AllSeries = new HashSet<string>();
             AllPublishers = new HashSet<string>();
@@ -299,6 +302,100 @@ namespace ComicCollector.Pages.Collection
             // Decide if redirecting to Discover or Collection, and which page
             // For now, redirecting to Discover as per original logic
             return RedirectToPage("/Discover/Index", new { SearchQuery = TempData["LastSearchQuery"] ?? "" });
+        }
+
+        public async Task<JsonResult> OnGetComicDetailsWithGeminiAsync(int comicId)
+        {
+            var currentUserId = _sessionInfo.GetCurrentUserId();
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                return new JsonResult(new { error = "User not authenticated." }) { StatusCode = 401 };
+            }
+
+            var comic = await _context.Comics
+                                .FirstOrDefaultAsync(c => c.ComicCollectorId == comicId && c.UserId == currentUserId);
+
+            if (comic == null)
+            {
+                return new JsonResult(new { error = "Comic not found or not authorized." }) { StatusCode = 404 };
+            }
+
+            try
+            {
+                // Attempt to enrich comic data
+                var originalAuthor = comic.Author;
+                var originalPublisher = comic.Publisher;
+                var originalDescription = comic.Description;
+                var originalPublicationDate = comic.PublicationDate;
+
+                Comic? enrichedComic = await _geminiService.EnrichComicDataAsync(comic);
+                bool updated = false;
+                if (enrichedComic != null) {
+                    // Check if any of the relevant fields were actually changed by enrichment
+                    if (originalAuthor != enrichedComic.Author || 
+                        originalPublisher != enrichedComic.Publisher ||
+                        originalDescription != enrichedComic.Description ||
+                        originalPublicationDate != enrichedComic.PublicationDate)
+                    {
+                        comic = enrichedComic; // Update reference to the (potentially) modified comic
+                        _context.Comics.Update(comic);
+                        await _context.SaveChangesAsync();
+                        updated = true;
+                        _logger.LogInformation($"Comic ID {comic.ComicCollectorId} was enriched and updated by Gemini.");
+                    }
+                }
+
+                string? reviewSummary = await _geminiService.GetReviewSummaryAsync(comic.Title, comic.Series, comic.Author);
+
+                // Prepare data for JSON response, ensuring dates are in a consistent format
+                var comicData = new
+                {
+                    comic.ComicCollectorId,
+                    comic.Title,
+                    comic.Series,
+                    comic.IssueNumber,
+                    comic.Author,
+                    comic.Publisher,
+                    PublicationDate = comic.PublicationDate.ToString("yyyy-MM-dd"), // Consistent date format
+                    comic.PageCount,
+                    comic.CoverImage,
+                    comic.Description,
+                    comic.Notes,
+                    comic.Source,
+                    comic.SourceId,
+                    CreatedAt = comic.CreatedAt.ToString("o"), // ISO 8601
+                    UpdatedAt = comic.UpdatedAt.ToString("o"), // ISO 8601
+                    GeminiReviewSummary = reviewSummary,
+                    WasEnriched = updated
+                };
+                return new JsonResult(comicData);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error fetching details with Gemini for comic ID {comicId}.");
+                // Return the basic comic data even if Gemini fails, but indicate error for review
+                var basicComicData = new
+                {
+                    comic.ComicCollectorId,
+                    comic.Title,
+                    comic.Series,
+                    comic.IssueNumber,
+                    comic.Author,
+                    comic.Publisher,
+                    PublicationDate = comic.PublicationDate.ToString("yyyy-MM-dd"),
+                    comic.PageCount,
+                    comic.CoverImage,
+                    comic.Description,
+                    comic.Notes,
+                    comic.Source,
+                    comic.SourceId,
+                    CreatedAt = comic.CreatedAt.ToString("o"),
+                    UpdatedAt = comic.UpdatedAt.ToString("o"),
+                    GeminiReviewSummary = "Error fetching review summary.",
+                    WasEnriched = false
+                };
+                return new JsonResult(new { comic = basicComicData, error = "Error processing Gemini data." });
+            }
         }
     }
 }

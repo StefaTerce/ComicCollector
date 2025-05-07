@@ -71,9 +71,10 @@ builder.Services.AddScoped<SessionInfoService>();
 
 builder.Services.AddHttpClient<ComicVineService>();
 builder.Services.AddHttpClient<MangaDexService>();
+builder.Services.AddHttpClient<GeminiService>(); // Add GeminiService
 builder.Services.AddScoped<ComicVineService>();
 builder.Services.AddScoped<MangaDexService>();
-
+builder.Services.AddScoped<GeminiService>(); // Add GeminiService
 
 var app = builder.Build();
 
