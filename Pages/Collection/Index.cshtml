@@ -308,6 +308,41 @@
             </ul>
         </nav>
     }
+
+    <!-- Raccomandazioni AI -->
+    @if (Model.RecommendedComics.Any() || Model.RecommendedManga.Any())
+    {
+        <div class="recommendations-section mb-4 mt-5">
+            <h2><i class="fas fa-magic"></i> Raccomandazioni AI</h2>
+            <p>Basato sulla tua collezione, potresti apprezzare:</p>
+            <div class="row">
+                @if (Model.RecommendedComics.Any())
+                {
+                    <div class="col-md-6">
+                        <h4><i class="fas fa-book-open"></i> Fumetti</h4>
+                        <ul class="list-group">
+                            @foreach (var comicTitle in Model.RecommendedComics)
+                            {
+                                <li class="list-group-item">@comicTitle</li>
+                            }
+                        </ul>
+                    </div>
+                }
+                @if (Model.RecommendedManga.Any())
+                {
+                    <div class="col-md-6">
+                        <h4><i class="fas fa-dragon"></i> Manga</h4>
+                        <ul class="list-group">
+                            @foreach (var mangaTitle in Model.RecommendedManga)
+                            {
+                                <li class="list-group-item">@mangaTitle</li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+        </div>
+    }
 </div>
 
 <!-- Modal Dettagli Fumetto (Generic) -->
@@ -515,7 +550,6 @@
             $('#modalComicNotes').text('');
             $('#modalGeminiReviewSummary').text('Caricamento recensione...');
             $('#modalEnrichmentStatus').text('');
-            // Clear previous styling for Gemini content
             $('#geminiReviewContent').html('<p id="modalGeminiReviewSummary">Caricamento recensione...</p>');
 
             $.ajax({
@@ -556,57 +590,76 @@
                     $('#modalComicNotes').text(comicToDisplay.notes || 'Nessuna nota.');
 
                     if (errorMessage) {
-                        $('#modalGeminiReviewSummary').html(`<p class="text-danger">${comicToDisplay.geminiReviewSummary || 'Errore nel recupero della recensione.'}</p>`);
+                        $('#geminiReviewContent').html(`<p class="text-danger">${comicToDisplay.geminiReviewSummary || 'Errore nel recupero della recensione.'}</p>`);
                         $('#modalEnrichmentStatus').text(errorMessage);
                     } else {
                         let reviewHtml = '<p>Recensione non disponibile o API Key non configurata.</p>';
                         if (comicToDisplay.geminiReviewSummary) {
-                            // Basic parsing for Positive/Negative traits for styling
-                            // This is a simplified parser. For more complex HTML, a more robust solution would be needed.
-                            let summary = comicToDisplay.geminiReviewSummary.replace(/\n/g, '<br>');
-                            summary = summary.replace(/Positive Traits:/gi, '<strong class="text-success">Positive Traits:</strong>');
-                            summary = summary.replace(/Negative Traits:/gi, '<strong class="text-danger">Negative Traits:</strong>');
-                            summary = summary.replace(/\* (.*?)(<br>|$)/gi, '<ul class="list-unstyled ps-3"><li class="mb-1"><i class="bi bi-check-circle-fill text-success me-2"></i>$1</li></ul>'); // Basic positive bullet
-                            // Need to refine bullet logic if positive/negative bullets need different icons or styling based on section
-                            // For now, this is a general approach. A more specific approach would parse sections.
-
-                            // Attempt to differentiate positive and negative bullets if possible by context (very basic)
-                            let sections = comicToDisplay.geminiReviewSummary.split(/Negative Traits:|Positive Traits:/gi);
+                            let summaryText = comicToDisplay.geminiReviewSummary;
                             let formattedSummary = '';
-                            if (comicToDisplay.geminiReviewSummary.includes("Positive Traits:")) {
-                                formattedSummary += '<h6 class="text-success"><i class="bi bi-hand-thumbs-up-fill me-1"></i>Positive Traits:</h6>';
-                                let positiveSection = sections.find(s => comicToDisplay.geminiReviewSummary.indexOf(s) < comicToDisplay.geminiReviewSummary.indexOf("Negative Traits:") && s.trim().length > 0);
-                                if (!positiveSection && sections.length > 1 && comicToDisplay.geminiReviewSummary.indexOf("Positive Traits:") < (comicToDisplay.geminiReviewSummary.indexOf("Negative Traits:") > -1 ? comicToDisplay.geminiReviewSummary.indexOf("Negative Traits:") : Infinity) ) {
-                                   positiveSection = sections[1]; // Assuming first section after "Positive Traits:"
-                                }
-                                if (positiveSection) {
+
+                            const positiveHeaderIt = "Lati Positivi:";
+                            const negativeHeaderIt = "Lati Negativi:";
+                            const positiveHeaderEn = "Positive Traits:";
+                            const negativeHeaderEn = "Negative Traits:";
+
+                            let actualPositiveHeader = summaryText.includes(positiveHeaderIt) ? positiveHeaderIt : (summaryText.includes(positiveHeaderEn) ? positiveHeaderEn : null);
+                            let actualNegativeHeader = summaryText.includes(negativeHeaderIt) ? negativeHeaderIt : (summaryText.includes(negativeHeaderEn) ? negativeHeaderEn : null);
+                            
+                            let contentAfterPositive = "";
+                            let positiveTraitsSection = "";
+                            let negativeTraitsSection = "";
+
+                            if (actualPositiveHeader) {
+                                formattedSummary += `<h6 class="text-success mt-2"><i class="bi bi-hand-thumbs-up-fill me-1"></i>${actualPositiveHeader}</h6>`;
+                                let startPosIdx = summaryText.indexOf(actualPositiveHeader) + actualPositiveHeader.length;
+                                contentAfterPositive = summaryText.substring(startPosIdx);
+                                
+                                let endPosIdx = actualNegativeHeader ? contentAfterPositive.indexOf(actualNegativeHeader) : -1;
+                                positiveTraitsSection = (endPosIdx !== -1) ? contentAfterPositive.substring(0, endPosIdx).trim() : contentAfterPositive.trim();
+
+                                if (positiveTraitsSection) {
                                     formattedSummary += '<ul class="list-unstyled ps-3">';
-                                    positiveSection.trim().split(/\n|\* /).forEach(item => {
-                                        if (item.trim()) formattedSummary += `<li class="mb-1"><i class="bi bi-check-circle-fill text-success me-2"></i>${item.trim()}</li>`;
+                                    positiveTraitsSection.split(/\n/).forEach(item => {
+                                        let trait = item.trim();
+                                        if (trait.startsWith("*")) {
+                                            trait = trait.substring(1).trim();
+                                        }
+                                        if (trait) {
+                                            formattedSummary += `<li><i class="bi bi-check-circle-fill text-success me-2"></i>${trait}</li>`;
+                                        }
                                     });
                                     formattedSummary += '</ul>';
                                 }
                             }
 
-                            if (comicToDisplay.geminiReviewSummary.includes("Negative Traits:")) {
-                                formattedSummary += '<h6 class="text-danger mt-3"><i class="bi bi-hand-thumbs-down-fill me-1"></i>Negative Traits:</h6>';
-                                let negativeSection = sections.find(s => comicToDisplay.geminiReviewSummary.indexOf(s) > comicToDisplay.geminiReviewSummary.indexOf("Negative Traits:") && s.trim().length > 0);
-                                 if (!negativeSection && sections.length > 0 && comicToDisplay.geminiReviewSummary.indexOf("Negative Traits:") > -1 ) {
-                                   negativeSection = sections[sections.length-1]; // Assuming last section after "Negative Traits:"
-                                }
-                                if (negativeSection) {
+                            if (actualNegativeHeader) {
+                                formattedSummary += `<h6 class="text-danger mt-3"><i class="bi bi-hand-thumbs-down-fill me-1"></i>${actualNegativeHeader}</h6>`;
+                                let startNegIdx = summaryText.indexOf(actualNegativeHeader) + actualNegativeHeader.length;
+                                let searchBaseForNegative = actualPositiveHeader && summaryText.indexOf(actualNegativeHeader) > summaryText.indexOf(actualPositiveHeader) ? contentAfterPositive : summaryText;
+                                startNegIdx = searchBaseForNegative.indexOf(actualNegativeHeader) + actualNegativeHeader.length;
+                                negativeTraitsSection = searchBaseForNegative.substring(startNegIdx).trim();
+                                
+                                if (negativeTraitsSection) {
                                     formattedSummary += '<ul class="list-unstyled ps-3">';
-                                    negativeSection.trim().split(/\n|\* /).forEach(item => {
-                                        if (item.trim()) formattedSummary += `<li class="mb-1"><i class="bi bi-x-circle-fill text-danger me-2"></i>${item.trim()}</li>`;
+                                    negativeTraitsSection.split(/\n/).forEach(item => {
+                                        let trait = item.trim();
+                                        if (trait.startsWith("*")) {
+                                            trait = trait.substring(1).trim();
+                                        }
+                                        if (trait) {
+                                            formattedSummary += `<li><i class="bi bi-x-circle-fill text-danger me-2"></i>${trait}</li>`;
+                                        }
                                     });
                                     formattedSummary += '</ul>';
                                 }
                             }
-                             if (!formattedSummary && comicToDisplay.geminiReviewSummary) { // Fallback for non-structured text
-                                formattedSummary = comicToDisplay.geminiReviewSummary.replace(/\n/g, '<br>');
+                            
+                            if (!formattedSummary && summaryText) {
+                                reviewHtml = summaryText.replace(/\n/g, '<br>');
+                            } else if (formattedSummary) {
+                                reviewHtml = formattedSummary;
                             }
-
-                            reviewHtml = formattedSummary || comicToDisplay.geminiReviewSummary.replace(/\n/g, '<br>');
                         }
                         $('#geminiReviewContent').html(reviewHtml);
 
@@ -621,9 +674,9 @@
                 },
                 error: function (xhr, status, error) {
                     console.error('Errore nel recupero dei dettagli del fumetto:', error, xhr.responseText);
-                    $('#modalGeminiReviewSummary').text('Errore AJAX nel caricare i dettagli.');
+                    $('#geminiReviewContent').html('<p class="text-danger">Errore AJAX nel caricare i dettagli.</p>');
                     $('#modalEnrichmentStatus').text('Consultare la console per dettagli sull\'errore.');
-                    $('#comicDetailsModal').modal('show'); // Mostra il modale anche in caso di errore per visualizzare il messaggio
+                    $('#comicDetailsModal').modal('show');
                 }
             });
         }

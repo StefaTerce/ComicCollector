@@ -20,7 +20,7 @@ namespace ComicCollector.Pages.Collection
         private readonly ApplicationDbContext _context;
         private readonly ILogger<IndexModel> _logger;
         private readonly SessionInfoService _sessionInfo;
-        private readonly GeminiService _geminiService; // Added GeminiService
+        private readonly GeminiService _geminiService;
 
         public List<Comic> UserComics { get; set; }
         public HashSet<string> AllSeries { get; set; }
@@ -28,6 +28,8 @@ namespace ComicCollector.Pages.Collection
         public int SeriesCount => AllSeries?.Count ?? 0;
         public int AuthorsCount { get; set; }
         public int PublishersCount => AllPublishers?.Count ?? 0;
+        public List<string> RecommendedComics { get; set; }
+        public List<string> RecommendedManga { get; set; }
 
         [TempData]
         public string StatusMessage { get; set; }
@@ -45,19 +47,21 @@ namespace ComicCollector.Pages.Collection
             ApplicationDbContext context,
             ILogger<IndexModel> logger,
             SessionInfoService sessionInfo,
-            GeminiService geminiService) // Added GeminiService
+            GeminiService geminiService)
         {
             _userManager = userManager;
             _context = context;
             _logger = logger;
             _sessionInfo = sessionInfo;
-            _geminiService = geminiService; // Added GeminiService
+            _geminiService = geminiService;
             UserComics = new List<Comic>();
             AllSeries = new HashSet<string>();
             AllPublishers = new HashSet<string>();
+            RecommendedComics = new List<string>();
+            RecommendedManga = new List<string>();
         }
 
-        public async Task OnGetAsync(int p = 1) // p is the page number from query string
+        public async Task OnGetAsync(int p = 1)
         {
             _sessionInfo.LogSessionInfo("Collection/Index");
 
@@ -66,7 +70,7 @@ namespace ComicCollector.Pages.Collection
             {
                 StatusMessage = "Errore: Utente non identificato.";
                 IsError = true;
-                UserComics = new List<Comic>(); // Ensure UserComics is initialized
+                UserComics = new List<Comic>();
                 AllSeries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 AllPublishers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 AuthorsCount = 0;
@@ -102,9 +106,9 @@ namespace ComicCollector.Pages.Collection
             // Pagination logic
             CurrentPage = p;
             TotalPages = (int)Math.Ceiling(TotalComicsCount / (double)PageSize);
-            if (TotalPages == 0) TotalPages = 1; // Ensure at least one page even if no comics
+            if (TotalPages == 0) TotalPages = 1;
             if (CurrentPage < 1) CurrentPage = 1;
-            if (CurrentPage > TotalPages && TotalPages > 0) CurrentPage = TotalPages; // Ensure CurrentPage is not out of bounds
+            if (CurrentPage > TotalPages && TotalPages > 0) CurrentPage = TotalPages;
 
             // Fetch paginated comics
             UserComics = await _context.Comics
@@ -113,17 +117,30 @@ namespace ComicCollector.Pages.Collection
                                  .Skip((CurrentPage - 1) * PageSize)
                                  .Take(PageSize)
                                  .ToListAsync();
+
+            // Load AI recommendations
+            var userCollection = await _context.Comics.Where(c => c.UserId == currentUserId).ToListAsync();
+            if (userCollection.Any())
+            {
+                var recommendations = await _geminiService.GetRecommendationsAsync(userCollection, 5, 5);
+                RecommendedComics = recommendations.RecommendedComics;
+                RecommendedManga = recommendations.RecommendedManga;
+            }
+            else
+            {
+                RecommendedComics = new List<string>();
+                RecommendedManga = new List<string>();
+            }
         }
 
-        public async Task<IActionResult> OnPostAddComicAsync(Comic newComic) // Aggiunta Manuale
+        public async Task<IActionResult> OnPostAddComicAsync(Comic newComic)
         {
             var currentUserId = _sessionInfo.GetCurrentUserId();
             if (string.IsNullOrEmpty(currentUserId)) return Forbid();
 
-            // Rimuovi User e UserId da ModelState per la validazione del form manuale
             ModelState.Remove("UserId");
             ModelState.Remove("User");
-            ModelState.Remove("SourceId"); // SourceId non è nel form manuale
+            ModelState.Remove("SourceId");
 
             if (!ModelState.IsValid)
             {
@@ -136,15 +153,14 @@ namespace ComicCollector.Pages.Collection
             newComic.UserId = currentUserId;
             newComic.CreatedAt = DateTime.UtcNow;
             newComic.UpdatedAt = DateTime.UtcNow;
-            newComic.Source = "Local"; // Specifico per aggiunta manuale
-            // newComic.SourceId sarà null per aggiunte manuali
+            newComic.Source = "Local";
 
             _context.Comics.Add(newComic);
             await _context.SaveChangesAsync();
 
             IsError = false;
             StatusMessage = $"'{newComic.Title}' aggiunto con successo alla tua collezione!";
-            return RedirectToPage(new { p = CurrentPage }); // Redirect to current page or page 1 if preferred
+            return RedirectToPage(new { p = CurrentPage });
         }
 
         public async Task<IActionResult> OnPostUpdateComicAsync(Comic updatedComic)
@@ -154,8 +170,6 @@ namespace ComicCollector.Pages.Collection
 
             ModelState.Remove("UserId");
             ModelState.Remove("User");
-            // Source e SourceId sono hidden fields, quindi dovrebbero essere validi
-            // CreatedAt è un hidden field
 
             if (!ModelState.IsValid)
             {
@@ -186,7 +200,6 @@ namespace ComicCollector.Pages.Collection
             comicToUpdate.Description = updatedComic.Description;
             comicToUpdate.Notes = updatedComic.Notes;
             comicToUpdate.UpdatedAt = DateTime.UtcNow;
-            // Source, SourceId e CreatedAt non dovrebbero cambiare durante un update normale.
 
             try
             {
@@ -199,7 +212,7 @@ namespace ComicCollector.Pages.Collection
                 IsError = true;
                 StatusMessage = "Errore di concorrenza durante l'aggiornamento. Il fumetto potrebbe essere stato modificato da un altro processo. Riprova.";
                 _logger.LogError("DbUpdateConcurrencyException for comic ID {ComicId}", comicToUpdate.ComicCollectorId);
-                await OnGetAsync(CurrentPage); // Ricarica i dati freschi
+                await OnGetAsync(CurrentPage);
                 return Page();
             }
             catch (Exception ex)
@@ -211,7 +224,7 @@ namespace ComicCollector.Pages.Collection
                 return Page();
             }
 
-            return RedirectToPage(new { p = CurrentPage }); // Redirect to current page
+            return RedirectToPage(new { p = CurrentPage });
         }
 
         public async Task<IActionResult> OnPostDeleteComicAsync(int comicIdToDelete)
@@ -234,7 +247,7 @@ namespace ComicCollector.Pages.Collection
 
             IsError = false;
             StatusMessage = $"'{comicToDelete.Title}' rimosso dalla collezione.";
-            return RedirectToPage(new { p = CurrentPage }); // Redirect to current page or page 1
+            return RedirectToPage(new { p = CurrentPage });
         }
 
         public async Task<IActionResult> OnPostAddToCollectionFromDiscoverAsync(
@@ -245,25 +258,16 @@ namespace ComicCollector.Pages.Collection
             var currentUserId = _sessionInfo.GetCurrentUserId();
             if (string.IsNullOrEmpty(currentUserId))
             {
-                // Se l'utente non è loggato, reindirizza al login
                 TempData["ErrorMessage"] = "Devi effettuare il login per aggiungere elementi alla tua collezione.";
                 return RedirectToPage("/Account/Login", new { ReturnUrl = Url.Page("/Discover/Index", new { SearchQuery = TempData["LastSearchQuery"] }) });
             }
 
-            // Prova a parsare la data
             if (!DateTime.TryParse(publicationDateStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out DateTime publicationDate))
             {
-                // Se il parsing fallisce, usa una data di default o gestisci l'errore
-                // Potrebbe essere che l'API non fornisca sempre una data completa.
-                // Per MangaDex, abbiamo usato Year. Se è Year, usiamo il 1 Gennaio di quell'anno.
-                // Per ComicVine, abbiamo provato a parsare "YYYY-MM-DD" o "YYYY-MM-00".
-                // Questo handler riceve una stringa formattata come "o" (ISO 8601).
                 _logger.LogWarning($"Could not parse publicationDate: {publicationDateStr} for {title}. Using DateTime.MinValue.");
-                publicationDate = DateTime.MinValue; // O gestisci come errore
+                publicationDate = DateTime.MinValue;
             }
 
-
-            // Controlla se l'elemento esiste già per questo utente dalla stessa fonte e ID sorgente
             var existingComic = await _context.Comics
                 .FirstOrDefaultAsync(c => c.UserId == currentUserId && c.Source == source && c.SourceId == sourceId);
 
@@ -291,16 +295,11 @@ namespace ComicCollector.Pages.Collection
                 UpdatedAt = DateTime.UtcNow
             };
 
-            // Valida il modello manualmente se necessario, anche se i dati provengono da API
-            // TryValidateModel(newComic); // Opzionale
-
             _context.Comics.Add(newComic);
             await _context.SaveChangesAsync();
 
             TempData["StatusMessage"] = $"'{title}' aggiunto alla tua collezione!";
             TempData["IsError"] = false;
-            // Decide if redirecting to Discover or Collection, and which page
-            // For now, redirecting to Discover as per original logic
             return RedirectToPage("/Discover/Index", new { SearchQuery = TempData["LastSearchQuery"] ?? "" });
         }
 
@@ -322,7 +321,6 @@ namespace ComicCollector.Pages.Collection
 
             try
             {
-                // Attempt to enrich comic data
                 var originalAuthor = comic.Author;
                 var originalPublisher = comic.Publisher;
                 var originalDescription = comic.Description;
@@ -330,14 +328,14 @@ namespace ComicCollector.Pages.Collection
 
                 Comic? enrichedComic = await _geminiService.EnrichComicDataAsync(comic);
                 bool updated = false;
-                if (enrichedComic != null) {
-                    // Check if any of the relevant fields were actually changed by enrichment
+                if (enrichedComic != null)
+                {
                     if (originalAuthor != enrichedComic.Author || 
                         originalPublisher != enrichedComic.Publisher ||
                         originalDescription != enrichedComic.Description ||
                         originalPublicationDate != enrichedComic.PublicationDate)
                     {
-                        comic = enrichedComic; // Update reference to the (potentially) modified comic
+                        comic = enrichedComic;
                         _context.Comics.Update(comic);
                         await _context.SaveChangesAsync();
                         updated = true;
@@ -345,9 +343,19 @@ namespace ComicCollector.Pages.Collection
                     }
                 }
 
-                string? reviewSummary = await _geminiService.GetReviewSummaryAsync(comic.Title, comic.Series, comic.Author);
+                string prompt = $"Per il fumetto o manga intitolato '{comic.Title}'";
+                if (!string.IsNullOrWhiteSpace(comic.Series))
+                {
+                    prompt += $" nella serie '{comic.Series}'";
+                }
+                if (!string.IsNullOrWhiteSpace(comic.Author))
+                {
+                    prompt += $" dell'autore '{comic.Author}'";
+                }
+                prompt += ". Fornisci un elenco dettagliato dei suoi lati positivi (almeno 3-5 punti) e lati negativi (almeno 2-4 punti). Rispondi in italiano e formatta la risposta con intestazioni come 'Lati Positivi:' e 'Lati Negativi:'.";
 
-                // Prepare data for JSON response, ensuring dates are in a consistent format
+                string? reviewSummary = await _geminiService.GetReviewSummaryAsync(prompt);
+
                 var comicData = new
                 {
                     comic.ComicCollectorId,
@@ -356,15 +364,15 @@ namespace ComicCollector.Pages.Collection
                     comic.IssueNumber,
                     comic.Author,
                     comic.Publisher,
-                    PublicationDate = comic.PublicationDate.ToString("yyyy-MM-dd"), // Consistent date format
+                    PublicationDate = comic.PublicationDate.ToString("yyyy-MM-dd"),
                     comic.PageCount,
                     comic.CoverImage,
                     comic.Description,
                     comic.Notes,
                     comic.Source,
                     comic.SourceId,
-                    CreatedAt = comic.CreatedAt.ToString("o"), // ISO 8601
-                    UpdatedAt = comic.UpdatedAt.ToString("o"), // ISO 8601
+                    CreatedAt = comic.CreatedAt.ToString("o"),
+                    UpdatedAt = comic.UpdatedAt.ToString("o"),
                     GeminiReviewSummary = reviewSummary,
                     WasEnriched = updated
                 };
@@ -373,7 +381,6 @@ namespace ComicCollector.Pages.Collection
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error fetching details with Gemini for comic ID {comicId}.");
-                // Return the basic comic data even if Gemini fails, but indicate error for review
                 var basicComicData = new
                 {
                     comic.ComicCollectorId,

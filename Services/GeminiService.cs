@@ -1,16 +1,26 @@
 using ComicCollector.Models;
+using ComicCollector.Data; // Added for ApplicationDbContext
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore; // Added for ToListAsync
 using System;
 using System.Net.Http;
 using System.Net.Http.Json; // Required for PostAsJsonAsync and ReadFromJsonAsync
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions; // Added for Regex
+using System.Linq; // Added for LINQ methods
 using System.Threading.Tasks;
 
 namespace ComicCollector.Services
 {
+    public class RecommendationResult
+    {
+        public List<string> RecommendedComics { get; set; } = new List<string>();
+        public List<string> RecommendedManga { get; set; } = new List<string>();
+    }
+
     public class GeminiService
     {
         private readonly HttpClient _httpClient;
@@ -20,8 +30,8 @@ namespace ComicCollector.Services
 
         // Hypothetical Gemini API Configuration
         private readonly string _geminiApiBaseUrl = "https://generativelanguage.googleapis.com/v1beta/models"; // Example base URL
-        private readonly string _geminiModelForText = "gemini-pro:generateContent"; // Example model for text generation
-        private readonly string _geminiModelForEnrichment = "gemini-pro:generateContent"; // Can be the same or different
+        private readonly string _geminiModelForText = "gemini-1.5-flash-latest:generateContent"; // Example model for text generation
+        private readonly string _geminiModelForEnrichment = "gemini-1.5-flash-latest:generateContent"; // Can be the same or different
 
         public GeminiService(HttpClient httpClient, ILogger<GeminiService> logger, IOptionsMonitor<ApiKeySettings> apiKeySettings)
         {
@@ -30,7 +40,7 @@ namespace ComicCollector.Services
             _apiKeySettings = apiKeySettings;
         }
 
-        public async Task<string?> GetReviewSummaryAsync(string title, string series, string? author)
+        public async Task<string?> GetReviewSummaryAsync(string prompt)
         {
             if (string.IsNullOrWhiteSpace(ApiKey))
             {
@@ -38,49 +48,50 @@ namespace ComicCollector.Services
                 return null;
             }
 
-            if (string.IsNullOrWhiteSpace(title))
-            {
-                _logger.LogWarning("Title is required to get a review summary.");
-                return null;
-            }
-
             try
             {
-                // Construct the prompt for Gemini
-                string prompt = $"For the comic or manga titled '{title}'";
-                if (!string.IsNullOrWhiteSpace(series) && series.ToLower() != "n/a" && series.ToLower() != "manga")
-                {
-                    prompt += $" in the series '{series}'";
-                }
-                if (!string.IsNullOrWhiteSpace(author))
-                {
-                    prompt += $" by author(s) '{author}'";
-                }
-                prompt += ". Please provide an extensive list of its positive traits (at least 3-5 points if possible) and an extensive list of its negative traits (at least 2-4 points if possible). Format the response clearly, using bullet points under headings like 'Positive Traits:' and 'Negative Traits:'. If no specific reviews or information to form such lists are found, state that clearly.";
-
-                _logger.LogInformation($"Sending prompt to Gemini for review summary: {prompt}");
-
                 var requestUrl = $"{_geminiApiBaseUrl}/{_geminiModelForText}?key={ApiKey}";
                 var requestPayload = new GeminiRequest { Contents = new[] { new Content { Parts = new[] { new Part { Text = prompt } } } } };
 
-                await Task.Delay(200); // Simulate network latency
-                GeminiResponse? geminiApiResponse = SimulateGeminiTextResponse(title, series, author);
+                var response = await _httpClient.PostAsJsonAsync(requestUrl, requestPayload);
+                response.EnsureSuccessStatusCode();
 
+                var geminiApiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
                 string? summary = geminiApiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
 
                 if (string.IsNullOrWhiteSpace(summary))
                 {
-                    _logger.LogWarning($"Gemini returned an empty or invalid summary for '{title}'.");
-                    summary = "Review summary could not be retrieved at this time.";
+                    _logger.LogWarning("Gemini returned an empty or invalid summary.");
+                    return "Non è stato possibile recuperare il riepilogo al momento.";
                 }
 
-                _logger.LogInformation($"Gemini review summary received for '{title}'.");
+                // 1. Remove ALL asterisk characters from the summary.
+                summary = summary.Replace("*", "");
+
+                // 2. Trim leading/trailing whitespace (includes newlines) from the entire summary.
+                summary = summary.Trim();
+
+                // 3. Normalize multiple internal blank lines to a single blank line.
+                // This regex looks for two or more consecutive newline sequences (allowing for whitespace on empty lines between them)
+                // and replaces them with a single pair of newlines (effectively one blank line).
+                if (!string.IsNullOrWhiteSpace(summary)) 
+                {
+                    summary = Regex.Replace(summary, @"(\r\n|\r|\n)(\s*(\r\n|\r|\n))+", $"{Environment.NewLine}{Environment.NewLine}");
+                }
+                
+                // After all cleaning, check if the summary became empty or consists only of whitespace.
+                if (string.IsNullOrWhiteSpace(summary))
+                {
+                    _logger.LogWarning("Gemini summary became empty after cleaning procedures.");
+                    return "Non è stato possibile recuperare un riepilogo valido al momento.";
+                }
+
                 return summary;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error getting review summary from Gemini for '{title}'.");
-                return "An error occurred while fetching the review summary.";
+                _logger.LogError(ex, "Error getting review summary from Gemini.");
+                return "Si è verificato un errore durante il recupero del riepilogo.";
             }
         }
 
@@ -142,25 +153,91 @@ namespace ComicCollector.Services
             }
         }
 
+        public async Task<RecommendationResult> GetRecommendationsAsync(List<Comic> userCollection, int comicCount, int mangaCount)
+        {
+            if (userCollection == null || !userCollection.Any())
+            {
+                return new RecommendationResult(); // Return empty if no collection
+            }
+
+            // Analyze collection for preferences
+            var topAuthors = userCollection.Where(c => !string.IsNullOrEmpty(c.Author))
+                                           .GroupBy(c => c.Author)
+                                           .OrderByDescending(g => g.Count())
+                                           .Select(g => g.Key)
+                                           .Take(5)
+                                           .ToList();
+
+            var topSeries = userCollection.Where(c => !string.IsNullOrEmpty(c.Series) && c.Series.ToLower() != "manga")
+                                          .GroupBy(c => c.Series)
+                                          .OrderByDescending(g => g.Count())
+                                          .Select(g => g.Key)
+                                          .Take(5)
+                                          .ToList();
+
+            var topPublishers = userCollection.Where(c => !string.IsNullOrEmpty(c.Publisher))
+                                              .GroupBy(c => c.Publisher)
+                                              .OrderByDescending(g => g.Count())
+                                              .Select(g => g.Key)
+                                              .Take(3)
+                                              .ToList();
+
+            var promptBuilder = new StringBuilder("Based on a user who has shown interest in ");
+            if (topAuthors.Any()) promptBuilder.Append($"authors like {string.Join(", ", topAuthors)}; ");
+            if (topSeries.Any()) promptBuilder.Append($"comic series like {string.Join(", ", topSeries)}; ");
+            if (topPublishers.Any()) promptBuilder.Append($"publishers like {string.Join(", ", topPublishers)}; ");
+
+            promptBuilder.Append($"Please recommend {comicCount} new comic book titles (Western style, not manga) and {mangaCount} new manga titles they might enjoy. ");
+            promptBuilder.Append("Format the response as follows: Start with 'Recommended Comics:', followed by a numbered list of comic titles. Then, on a new line, start with 'Recommended Manga:', followed by a numbered list of manga titles. Each title should be on its own line.");
+
+            string prompt = promptBuilder.ToString();
+            _logger.LogInformation("Gemini Recommendation Prompt: {Prompt}", prompt);
+
+            try
+            {
+                var requestUrl = $"{_geminiApiBaseUrl}/{_geminiModelForText}?key={ApiKey}";
+                var requestPayload = new GeminiRequest { Contents = new[] { new Content { Parts = new[] { new Part { Text = prompt } } } } };
+
+                var response = await _httpClient.PostAsJsonAsync(requestUrl, requestPayload);
+                response.EnsureSuccessStatusCode();
+
+                var geminiApiResponse = await response.Content.ReadFromJsonAsync<GeminiResponse>();
+                string? responseText = geminiApiResponse?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text;
+
+                if (string.IsNullOrWhiteSpace(responseText))
+                {
+                    _logger.LogWarning("Gemini recommendation response was empty or null.");
+                    return new RecommendationResult();
+                }
+
+                return ParseRecommendations(responseText);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching recommendations from Gemini API.");
+                return new RecommendationResult();
+            }
+        }
+
         private GeminiResponse SimulateGeminiTextResponse(string title, string? series, string? author)
         {
             // Simulate a plausible Gemini response structure with more positive/negative traits
             var simulatedText = $"Positive Traits:\n"
-                                + "* Incredibly captivating storyline for '{title}' that keeps readers hooked from start to finish.\n"
-                                + "* Deep and well-developed characters with relatable motivations and growth arcs.\n"
-                                + "* Stunning and detailed artwork that beautifully complements the narrative tone.\n"
-                                + "* Excellent world-building, creating a rich and immersive experience.";
+                                + "Incredibly captivating storyline for '{title}' that keeps readers hooked from start to finish.\n"
+                                + "Deep and well-developed characters with relatable motivations and growth arcs.\n"
+                                + "Stunning and detailed artwork that beautifully complements the narrative tone.\n"
+                                + "Excellent world-building, creating a rich and immersive experience.";
             if (!string.IsNullOrWhiteSpace(series) && series.ToLower() != "n/a")
             {
-                simulatedText += $"\n* Seamlessly integrates into the broader '{series}' lore.";
+                simulatedText += $"\nSeamlessly integrates into the broader '{series}' lore.";
             }
             simulatedText += "\n\nNegative Traits:\n"
-                           + "* The pacing can feel a bit rushed in the final chapters, leaving some subplots underdeveloped.\n"
-                           + "* Some secondary characters could have benefited from more screen time or development.\n"
-                           + "* Certain plot twists might be predictable for seasoned readers of the genre.";
+                           + "The pacing can feel a bit rushed in the final chapters, leaving some subplots underdeveloped.\n"
+                           + "Some secondary characters could have benefited from more screen time or development.\n"
+                           + "Certain plot twists might be predictable for seasoned readers of the genre.";
             if (title.Contains("Space")) // Just an example to vary the simulated response
             {
-                simulatedText += "\n* The depiction of space travel physics is not always accurate.";
+                simulatedText += "\nThe depiction of space travel physics is not always accurate.";
             }
             simulatedText += "\n(This is a simulated summary from Gemini)";
             
@@ -203,6 +280,51 @@ namespace ComicCollector.Services
                     }
                 }
             };
+        }
+
+        private RecommendationResult ParseRecommendations(string responseText)
+        {
+            var result = new RecommendationResult();
+            var lines = responseText.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+            bool comicsSection = false;
+            bool mangaSection = false;
+
+            foreach (var line in lines)
+            {
+                var trimmedLine = line.Trim();
+                if (string.IsNullOrWhiteSpace(trimmedLine)) continue;
+
+                if (trimmedLine.StartsWith("Recommended Comics:", StringComparison.OrdinalIgnoreCase))
+                {
+                    comicsSection = true;
+                    mangaSection = false;
+                    continue;
+                }
+                if (trimmedLine.StartsWith("Recommended Manga:", StringComparison.OrdinalIgnoreCase))
+                {
+                    comicsSection = false;
+                    mangaSection = true;
+                    continue;
+                }
+
+                // Regex to match "1. Title" or "1. Title (details)"
+                var match = Regex.Match(trimmedLine, @"^\d+\.\s*(.+?)(?:\s*\(.+\))?$");
+                if (match.Success)
+                {
+                    string title = match.Groups[1].Value.Trim();
+                    if (comicsSection)
+                    {
+                        result.RecommendedComics.Add(title);
+                    }
+                    else if (mangaSection)
+                    {
+                        result.RecommendedManga.Add(title);
+                    }
+                }
+            }
+            _logger.LogInformation($"Parsed Recommendations - Comics: {result.RecommendedComics.Count}, Manga: {result.RecommendedManga.Count}");
+            return result;
         }
 
         private void ParseAndApplyEnrichment(Comic comic, string geminiResponseText)
