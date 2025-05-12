@@ -18,14 +18,14 @@ namespace ComicCollector.Pages.Discover
         private readonly MangaDexService _mangaDexService;
         private readonly ILogger<IndexModel> _logger;
         private readonly SessionInfoService _sessionInfo;
-        private readonly GeminiService _geminiService;
-        private readonly ApplicationDbContext _context;
+        private readonly GeminiService _geminiService; // Kept for potential future use, but not for recommendations here
+        private readonly ApplicationDbContext _context; // Kept for potential future use
 
-        private const int FEATURED_ITEMS_PER_SOURCE = 20; // Quanti elementi caricare per fonte per i "featured"
-        private const int MAX_FEATURED_ITEMS_DISPLAY = 40; // Quanti elementi totali mostrare nella UI per i "featured"
+        private const int FEATURED_ITEMS_PER_SOURCE = 20;
+        private const int MAX_FEATURED_ITEMS_DISPLAY = 40;
 
         [BindProperty(SupportsGet = true)]
-        public string SearchQuery { get; set; }
+        public string SearchQuery { get; set; } = string.Empty;
 
         [BindProperty]
         public bool SearchComicVine { get; set; } = true;
@@ -39,12 +39,8 @@ namespace ComicCollector.Pages.Discover
 
         public List<object> FeaturedItems { get; set; } = new List<object>();
 
-        public List<string> RecommendedComics { get; set; } = new List<string>();
-        public List<string> RecommendedManga { get; set; } = new List<string>();
-        public bool HasRecommendations => (RecommendedComics.Any() || RecommendedManga.Any());
-
         [TempData]
-        public string StatusMessage { get; set; }
+        public string? StatusMessage { get; set; }
         [TempData]
         public bool IsError { get; set; }
 
@@ -66,27 +62,8 @@ namespace ComicCollector.Pages.Discover
 
         public async Task OnGetAsync()
         {
-            // Log session info at the beginning of OnGet
             _sessionInfo.LogSessionInfo("Discover/Index - OnGetAsync Start");
-            // Explicit log of current session values as requested
             _logger.LogInformation($"Session Info Check - UTC Time: {_sessionInfo.GetCurrentUtcDateTime()} | User: {_sessionInfo.GetSessionUserName()} (ID: {_sessionInfo.GetCurrentUserId()})");
-
-            // Get user's collection - assuming all comics in DB are the user's for now
-            // In a real app, you'd filter by UserId
-            var userCollection = await _context.Comics.ToListAsync();
-
-            if (userCollection.Any())
-            {
-                _logger.LogInformation($"User collection has {userCollection.Count} items. Fetching recommendations.");
-                var recommendations = await _geminiService.GetRecommendationsAsync(userCollection, 5, 5); // Request 5 comics and 5 manga
-                RecommendedComics = recommendations.RecommendedComics;
-                RecommendedManga = recommendations.RecommendedManga;
-                _logger.LogInformation($"Received {RecommendedComics.Count} comic recommendations and {RecommendedManga.Count} manga recommendations.");
-            }
-            else
-            {
-                _logger.LogInformation("User collection is empty. No recommendations will be fetched.");
-            }
 
             if (!string.IsNullOrWhiteSpace(SearchQuery))
             {
@@ -95,14 +72,13 @@ namespace ComicCollector.Pages.Discover
             }
             else
             {
-                ShowSearchResults = false; // Ensure search results are not shown if no query
+                ShowSearchResults = false;
                 await LoadFeaturedContentAsync();
             }
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
-            // Log session info at the beginning of OnPost
             _sessionInfo.LogSessionInfo("Discover/Index - OnPostAsync Start");
             _logger.LogInformation($"Session Info Check POST - UTC Time: {_sessionInfo.GetCurrentUtcDateTime()} | User: {_sessionInfo.GetSessionUserName()} (ID: {_sessionInfo.GetCurrentUserId()})");
 
@@ -169,11 +145,8 @@ namespace ComicCollector.Pages.Discover
             {
                 var query = new ComicVineSearchQuery
                 {
-                    Query = isFeaturedSearch ? "" : SearchQuery, // Query vuota per featured, altrimenti la query dell'utente
+                    Query = isFeaturedSearch ? "" : SearchQuery,
                     Limit = isFeaturedSearch ? FEATURED_ITEMS_PER_SOURCE : 24,
-                    // Per featured, potresti voler ordinare per 'date_added:desc' o 'store_date:desc'
-                    // Questo richiederebbe di estendere ComicVineSearchQuery e il servizio per gestire 'sort'
-                    // FieldList = "id,name,image,description,issue_number,volume,person_credits,cover_date,store_date" // Già nel modello
                 };
                 var results = await _comicVineService.SearchComicsAsync(query);
                 if (isFeaturedSearch)
@@ -204,25 +177,19 @@ namespace ComicCollector.Pages.Discover
             {
                 var query = new MangaDexSearchQuery
                 {
-                    Title = isFeaturedSearch ? "" : SearchQuery, // Titolo vuoto per featured
+                    Title = isFeaturedSearch ? "" : SearchQuery,
                     Limit = isFeaturedSearch ? FEATURED_ITEMS_PER_SOURCE : 24,
-                    OrderCreatedAt = isFeaturedSearch ? "desc" : null, // Ordina per recenti solo per featured
+                    OrderCreatedAt = isFeaturedSearch ? "desc" : string.Empty,
                     Includes = "cover_art,author,artist"
                 };
                 var results = await _mangaDexService.SearchMangaAsync(query);
 
-                // Recupera gli URL delle copertine per tutti i risultati (sia featured che ricerca normale)
-                // Questo può essere intensivo se ci sono molti risultati.
                 foreach (var manga in results)
                 {
-                    if (string.IsNullOrEmpty(manga.CoverImageUrl)) // Prova a caricare solo se non già presente
+                    if (string.IsNullOrEmpty(manga.CoverImageUrl))
                     {
-                        // Il MangaDexService ora dovrebbe tentare di ottenere il coverId durante SearchMangaAsync
-                        // e GetCoverUrlAsync lo userà.
-                        // Per i featured, vogliamo assicurarci che le copertine siano caricate.
-                        var mangaRelationships = await FetchMangaRelationshipsAsync(manga.Id); // Questo è ancora un placeholder
+                        var mangaRelationships = await FetchMangaRelationshipsAsync(manga.Id);
                         var coverRel = mangaRelationships?.FirstOrDefault(r => r.Type == "cover_art");
-                        // Se SearchMangaAsync non ha popolato coverRel in modo utile, cerchiamo di nuovo.
                         if (coverRel == null)
                         {
                             var tempMangaData = new MangaDexManga { Id = manga.Id, Relationships = await FetchMangaRelationshipsAsync(manga.Id, true) };
@@ -258,14 +225,8 @@ namespace ComicCollector.Pages.Discover
             }
         }
 
-        // Modificato per accettare un flag per forzare una chiamata API se necessario
         private async Task<List<MangaDexRelationship>> FetchMangaRelationshipsAsync(string mangaId, bool forceApiCall = false)
         {
-            // Se 'forceApiCall' è true, o se le relazioni non sono state ottenute tramite 'includes',
-            // si dovrebbe fare una chiamata a /manga/{mangaId}?includes[]=cover_art,author,artist
-            // Per ora, questo metodo rimane un placeholder perché la logica di recupero copertina
-            // è principalmente in MangaDexService.GetCoverUrlAsync.
-            // Il flag 'forceApiCall' è per un'eventuale implementazione futura più granulare.
             await Task.CompletedTask;
             return new List<MangaDexRelationship>();
         }
@@ -273,7 +234,7 @@ namespace ComicCollector.Pages.Discover
         private async Task LoadFeaturedContentAsync()
         {
             _logger.LogInformation("Loading featured content for Discover page...");
-            FeaturedItems = new List<object>(); // Resetta prima di caricare
+            FeaturedItems = new List<object>();
             var tasks = new List<Task>
             {
                 SearchComicVineAsync(isFeaturedSearch: true),

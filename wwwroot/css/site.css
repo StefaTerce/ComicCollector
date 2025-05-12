@@ -14,8 +14,9 @@ html {
 }
 
 body {
-    margin-bottom: 60px;
+    margin-bottom: 60px; /* Height of the footer */
     background-color: #f8f9fa;
+    padding-top: 70px; /* Added to prevent content overlap by fixed navbar - adjust if navbar height changes */
 }
 
 /* Stile migliorato per la navbar */
@@ -124,7 +125,7 @@ body {
     color: #4285f4;
 }
 
-/* Stile per lista funzionalità */
+/* Stile per lista funzionalitï¿½ */
 .list-group-item {
     padding: 1rem 1.25rem;
 }

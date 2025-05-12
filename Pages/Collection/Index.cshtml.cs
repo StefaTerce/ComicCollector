@@ -28,11 +28,11 @@ namespace ComicCollector.Pages.Collection
         public int SeriesCount => AllSeries?.Count ?? 0;
         public int AuthorsCount { get; set; }
         public int PublishersCount => AllPublishers?.Count ?? 0;
-        public List<string> RecommendedComics { get; set; }
-        public List<string> RecommendedManga { get; set; }
+        public List<RecommendedTitle> RecommendedComics { get; set; }
+        public List<RecommendedTitle> RecommendedManga { get; set; }
 
         [TempData]
-        public string StatusMessage { get; set; }
+        public string? StatusMessage { get; set; }
         [TempData]
         public bool IsError { get; set; }
 
@@ -57,8 +57,8 @@ namespace ComicCollector.Pages.Collection
             UserComics = new List<Comic>();
             AllSeries = new HashSet<string>();
             AllPublishers = new HashSet<string>();
-            RecommendedComics = new List<string>();
-            RecommendedManga = new List<string>();
+            RecommendedComics = new List<RecommendedTitle>();
+            RecommendedManga = new List<RecommendedTitle>();
         }
 
         public async Task OnGetAsync(int p = 1)
@@ -89,10 +89,11 @@ namespace ComicCollector.Pages.Collection
 
             if (allUserComicsForStats.Any())
             {
-                AllSeries = new HashSet<string>(allUserComicsForStats.Select(c => c.Series).Where(s => !string.IsNullOrEmpty(s)).Distinct(), StringComparer.OrdinalIgnoreCase);
-                AllPublishers = new HashSet<string>(allUserComicsForStats.Select(c => c.Publisher).Where(p => !string.IsNullOrEmpty(p)).Distinct(), StringComparer.OrdinalIgnoreCase);
+                AllSeries = new HashSet<string>(allUserComicsForStats.Select(c => c.Series).Where(s => !string.IsNullOrEmpty(s)).Select(s => s!), StringComparer.OrdinalIgnoreCase);
+                AllPublishers = new HashSet<string>(allUserComicsForStats.Select(c => c.Publisher).Where(p => !string.IsNullOrEmpty(p)).Select(p => p!), StringComparer.OrdinalIgnoreCase);
                 AuthorsCount = allUserComicsForStats.Select(c => c.Author)
                                          .Where(a => !string.IsNullOrEmpty(a))
+                                         .Select(a => a!)
                                          .Distinct(StringComparer.OrdinalIgnoreCase)
                                          .Count();
             }
@@ -128,8 +129,8 @@ namespace ComicCollector.Pages.Collection
             }
             else
             {
-                RecommendedComics = new List<string>();
-                RecommendedManga = new List<string>();
+                RecommendedComics = new List<RecommendedTitle>();
+                RecommendedManga = new List<RecommendedTitle>();
             }
         }
 

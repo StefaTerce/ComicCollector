@@ -3,6 +3,10 @@
 @using ComicCollector.Models
 @{
     ViewData["Title"] = "La mia collezione";
+    Func<string, string> CleanRecommendationTitle = title => {
+        if (string.IsNullOrEmpty(title)) return string.Empty;
+        return title.TrimStart('*').Trim();
+    };
 }
 
 <div class="container py-5">
@@ -151,8 +155,10 @@
                                 <span>@comic.PublicationDate.ToString("MMM yyyy")</span>
                             </div>
                             <div class="btn-group w-100">
-                                <button class="btn btn-sm btn-outline-primary" onclick="fetchComicDetails(@comic.ComicCollectorId)">
-                                    <i class="bi bi-eye"></i> Dettagli
+                                <button class="btn btn-sm btn-outline-primary comic-details-btn" onclick="fetchComicDetails(@comic.ComicCollectorId, this)">
+                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                    <i class="bi bi-eye icon-eye"></i>
+                                    <span class="button-text">Dettagli</span>
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteComic('@comic.ComicCollectorId')">
                                     <i class="bi bi-trash"></i> Rimuovi
@@ -313,29 +319,43 @@
     @if (Model.RecommendedComics.Any() || Model.RecommendedManga.Any())
     {
         <div class="recommendations-section mb-4 mt-5">
-            <h2><i class="fas fa-magic"></i> Raccomandazioni AI</h2>
-            <p>Basato sulla tua collezione, potresti apprezzare:</p>
+            <h2 class="mb-3"><i class="fas fa-magic text-primary"></i> Raccomandazioni AI</h2>
+            <p class="text-muted">Basato sulla tua collezione, potresti apprezzare questi titoli. Clicca "Scopri" per trovarli nella sezione Scopri.</p>
             <div class="row">
                 @if (Model.RecommendedComics.Any())
                 {
-                    <div class="col-md-6">
-                        <h4><i class="fas fa-book-open"></i> Fumetti</h4>
-                        <ul class="list-group">
-                            @foreach (var comicTitle in Model.RecommendedComics)
+                    <div class="col-md-6 mb-3">
+                        <h4><i class="fas fa-book-open text-info"></i> Fumetti Consigliati</h4>
+                        <ul class="list-group shadow-sm">
+                            @foreach (var recommendation in Model.RecommendedComics)
                             {
-                                <li class="list-group-item">@comicTitle</li>
+                                var cleanedTitle = CleanRecommendationTitle(recommendation.Title);
+                                <li class="list-group-item">
+                                    <h5 class="mb-1">@cleanedTitle</h5>
+                                    <p class="mb-2 recommendation-description" style="font-size: 0.9rem; color: #555;">@recommendation.Description</p>
+                                    <a asp-page="/Discover/Index" asp-route-SearchQuery="@cleanedTitle" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-search"></i> Scopri
+                                    </a>
+                                </li>
                             }
                         </ul>
                     </div>
                 }
                 @if (Model.RecommendedManga.Any())
                 {
-                    <div class="col-md-6">
-                        <h4><i class="fas fa-dragon"></i> Manga</h4>
-                        <ul class="list-group">
-                            @foreach (var mangaTitle in Model.RecommendedManga)
+                    <div class="col-md-6 mb-3">
+                        <h4><i class="fas fa-dragon text-warning"></i> Manga Consigliati</h4>
+                        <ul class="list-group shadow-sm">
+                            @foreach (var recommendation in Model.RecommendedManga)
                             {
-                                <li class="list-group-item">@mangaTitle</li>
+                                var cleanedTitle = CleanRecommendationTitle(recommendation.Title);
+                                <li class="list-group-item">
+                                    <h5 class="mb-1">@cleanedTitle</h5>
+                                    <p class="mb-2 recommendation-description" style="font-size: 0.9rem; color: #555;">@recommendation.Description</p>
+                                    <a asp-page="/Discover/Index" asp-route-SearchQuery="@cleanedTitle" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-search"></i> Scopri
+                                    </a>
+                                </li>
                             }
                         </ul>
                     </div>
@@ -531,7 +551,17 @@
             });
         });
 
-        function fetchComicDetails(comicId) {
+        function fetchComicDetails(comicId, buttonElement) {
+            const originalButtonText = $(buttonElement).find('.button-text').text();
+            const spinner = $(buttonElement).find('.spinner-border');
+            const icon = $(buttonElement).find('.icon-eye');
+
+            // Disable button and show spinner
+            $(buttonElement).prop('disabled', true);
+            $(buttonElement).find('.button-text').text('Caricamento...');
+            spinner.removeClass('d-none');
+            icon.addClass('d-none');
+
             // Reset modal content before fetching new data
             $('#comicDetailsModalLabel').text('Dettagli Fumetto');
             $('#modalComicCoverImage').attr('src', '/images/placeholder_cover.png');
@@ -560,6 +590,12 @@
                         $('input:hidden[name="__RequestVerificationToken"]').val());
                 },
                 success: function (data) {
+                    // Restore button
+                    $(buttonElement).prop('disabled', false);
+                    $(buttonElement).find('.button-text').text(originalButtonText);
+                    spinner.addClass('d-none');
+                    icon.removeClass('d-none');
+
                     var comicToDisplay = data.comic || data;
                     var errorMessage = data.error;
 
@@ -673,6 +709,12 @@
                     $('#comicDetailsModal').modal('show');
                 },
                 error: function (xhr, status, error) {
+                    // Restore button
+                    $(buttonElement).prop('disabled', false);
+                    $(buttonElement).find('.button-text').text(originalButtonText);
+                    spinner.addClass('d-none');
+                    icon.removeClass('d-none');
+
                     console.error('Errore nel recupero dei dettagli del fumetto:', error, xhr.responseText);
                     $('#geminiReviewContent').html('<p class="text-danger">Errore AJAX nel caricare i dettagli.</p>');
                     $('#modalEnrichmentStatus').text('Consultare la console per dettagli sull\'errore.');

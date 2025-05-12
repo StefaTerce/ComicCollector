@@ -15,10 +15,16 @@ using System.Threading.Tasks;
 
 namespace ComicCollector.Services
 {
+    public class RecommendedTitle
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+    }
+
     public class RecommendationResult
     {
-        public List<string> RecommendedComics { get; set; } = new List<string>();
-        public List<string> RecommendedManga { get; set; } = new List<string>();
+        public List<RecommendedTitle> RecommendedComics { get; set; } = new List<RecommendedTitle>();
+        public List<RecommendedTitle> RecommendedManga { get; set; } = new List<RecommendedTitle>();
     }
 
     public class GeminiService
@@ -155,6 +161,11 @@ namespace ComicCollector.Services
 
         public async Task<RecommendationResult> GetRecommendationsAsync(List<Comic> userCollection, int comicCount, int mangaCount)
         {
+            if (string.IsNullOrWhiteSpace(ApiKey))
+            {
+                _logger.LogWarning("Gemini API key is not configured. Cannot fetch recommendations.");
+                return new RecommendationResult();
+            }
             if (userCollection == null || !userCollection.Any())
             {
                 return new RecommendationResult(); // Return empty if no collection
@@ -165,30 +176,23 @@ namespace ComicCollector.Services
                                            .GroupBy(c => c.Author)
                                            .OrderByDescending(g => g.Count())
                                            .Select(g => g.Key)
-                                           .Take(5)
+                                           .Take(3) // Reduced for brevity in prompt
                                            .ToList();
 
             var topSeries = userCollection.Where(c => !string.IsNullOrEmpty(c.Series) && c.Series.ToLower() != "manga")
                                           .GroupBy(c => c.Series)
                                           .OrderByDescending(g => g.Count())
                                           .Select(g => g.Key)
-                                          .Take(5)
+                                          .Take(3) // Reduced for brevity in prompt
                                           .ToList();
-
-            var topPublishers = userCollection.Where(c => !string.IsNullOrEmpty(c.Publisher))
-                                              .GroupBy(c => c.Publisher)
-                                              .OrderByDescending(g => g.Count())
-                                              .Select(g => g.Key)
-                                              .Take(3)
-                                              .ToList();
 
             var promptBuilder = new StringBuilder("Based on a user who has shown interest in ");
             if (topAuthors.Any()) promptBuilder.Append($"authors like {string.Join(", ", topAuthors)}; ");
             if (topSeries.Any()) promptBuilder.Append($"comic series like {string.Join(", ", topSeries)}; ");
-            if (topPublishers.Any()) promptBuilder.Append($"publishers like {string.Join(", ", topPublishers)}; ");
-
+            
             promptBuilder.Append($"Please recommend {comicCount} new comic book titles (Western style, not manga) and {mangaCount} new manga titles they might enjoy. ");
-            promptBuilder.Append("Format the response as follows: Start with 'Recommended Comics:', followed by a numbered list of comic titles. Then, on a new line, start with 'Recommended Manga:', followed by a numbered list of manga titles. Each title should be on its own line.");
+            promptBuilder.Append("For each title, provide a brief 1-2 sentence reason why it's recommended based on the user's collection. ");
+            promptBuilder.Append("Format the response as follows: Start with 'Recommended Comics:', then list each comic as '1. [Comic Title]: [Brief Description]'. Each on a new line. Then, on a new line, start with 'Recommended Manga:', followed by a similar numbered list for manga titles '1. [Manga Title]: [Brief Description]'.");
 
             string prompt = promptBuilder.ToString();
             _logger.LogInformation("Gemini Recommendation Prompt: {Prompt}", prompt);
@@ -299,28 +303,49 @@ namespace ComicCollector.Services
                 {
                     comicsSection = true;
                     mangaSection = false;
+                    _logger.LogInformation("Parsing Recommended Comics section.");
                     continue;
                 }
                 if (trimmedLine.StartsWith("Recommended Manga:", StringComparison.OrdinalIgnoreCase))
                 {
                     comicsSection = false;
                     mangaSection = true;
+                    _logger.LogInformation("Parsing Recommended Manga section.");
                     continue;
                 }
 
-                // Regex to match "1. Title" or "1. Title (details)"
-                var match = Regex.Match(trimmedLine, @"^\d+\.\s*(.+?)(?:\s*\(.+\))?$");
-                if (match.Success)
+                // Regex to match "1. Title: Description"
+                // It captures the title before the first colon, and the description after.
+                var match = Regex.Match(trimmedLine, @"^\d+\.\s*(.+?):\s*(.+)$");
+                if (match.Success && match.Groups.Count == 3)
                 {
                     string title = match.Groups[1].Value.Trim();
+                    string description = match.Groups[2].Value.Trim();
+
+                    // Remove all asterisks and re-trim
+                    title = title.Replace("*", "").Trim();
+                    description = description.Replace("*", "").Trim();
+                    
+                    if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(description))
+                    {
+                        _logger.LogWarning($"Skipped recommendation due to empty title or description after cleaning: '{trimmedLine}'");
+                        continue;
+                    }
+
                     if (comicsSection)
                     {
-                        result.RecommendedComics.Add(title);
+                        result.RecommendedComics.Add(new RecommendedTitle { Title = title, Description = description });
+                        _logger.LogInformation($"Added comic recommendation: '{title}' - '{description}'");
                     }
                     else if (mangaSection)
                     {
-                        result.RecommendedManga.Add(title);
+                        result.RecommendedManga.Add(new RecommendedTitle { Title = title, Description = description });
+                        _logger.LogInformation($"Added manga recommendation: '{title}' - '{description}'");
                     }
+                }
+                else
+                {
+                    _logger.LogWarning($"Could not parse recommendation line: '{trimmedLine}'");
                 }
             }
             _logger.LogInformation($"Parsed Recommendations - Comics: {result.RecommendedComics.Count}, Manga: {result.RecommendedManga.Count}");
@@ -337,15 +362,15 @@ namespace ComicCollector.Services
             {
                 if (line.StartsWith("Author:", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(comic.Author))
                 {
-                    comic.Author = line.Substring("Author:".Length).Trim();
-                    if (comic.Author.Equals("Not found", StringComparison.OrdinalIgnoreCase)) comic.Author = null;
-                    else updated = true;
+                    var value = line.Substring("Author:".Length).Trim();
+                    comic.Author = value.Equals("Not found", StringComparison.OrdinalIgnoreCase) ? string.Empty : value;
+                    if (!string.IsNullOrEmpty(comic.Author)) updated = true;
                 }
                 else if (line.StartsWith("Publisher:", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(comic.Publisher))
                 {
-                    comic.Publisher = line.Substring("Publisher:".Length).Trim();
-                    if (comic.Publisher.Equals("Not found", StringComparison.OrdinalIgnoreCase)) comic.Publisher = null;
-                    else updated = true;
+                    var value = line.Substring("Publisher:".Length).Trim();
+                    comic.Publisher = value.Equals("Not found", StringComparison.OrdinalIgnoreCase) ? string.Empty : value;
+                    if (!string.IsNullOrEmpty(comic.Publisher)) updated = true;
                 }
                 else if (line.StartsWith("PublicationDate:", StringComparison.OrdinalIgnoreCase) && comic.PublicationDate == DateTime.MinValue)
                 {
@@ -355,15 +380,13 @@ namespace ComicCollector.Services
                         comic.PublicationDate = parsedDate;
                         updated = true;
                     }
-                    else if (dateStr.Equals("Not found", StringComparison.OrdinalIgnoreCase))
-                    {
-                    }
+                    // If "Not found" or unparseable, PublicationDate remains DateTime.MinValue
                 }
                 else if (line.StartsWith("Description:", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(comic.Description))
                 {
-                    comic.Description = line.Substring("Description:".Length).Trim();
-                    if (comic.Description.Equals("Not found", StringComparison.OrdinalIgnoreCase)) comic.Description = null;
-                    else updated = true;
+                    var value = line.Substring("Description:".Length).Trim();
+                    comic.Description = value.Equals("Not found", StringComparison.OrdinalIgnoreCase) ? string.Empty : value;
+                    if (!string.IsNullOrEmpty(comic.Description)) updated = true;
                 }
             }
             if (updated) _logger.LogInformation($"Comic '{comic.Title}' was updated with enriched data from Gemini.");

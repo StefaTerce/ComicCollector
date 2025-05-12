@@ -19,7 +19,7 @@
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3 fixed-top">
             <div class="container">
                 <a class="navbar-brand" asp-area="" asp-page="/Index">
                     <i class="bi bi-collection-fill me-1"></i> Comic Collector
@@ -44,9 +44,6 @@
                                 <i class="bi bi-compass"></i> Scopri
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Privacy"><i class="bi bi-shield-lock"></i> Privacy</a>
-                        </li>
                     </ul>
                     <partial name="_LoginPartial" />
                 </div>
@@ -61,8 +58,7 @@
 
     <footer class="border-top footer text-muted mt-auto py-3 bg-light">
         <div class="container text-center">
-            &copy; @DateTime.Now.Year - Comic Collector - Realizzato da StefaTerce -
-            <a asp-area="" asp-page="/Privacy">Privacy Policy</a>
+            &copy; @DateTime.Now.Year - Comic Collector
         </div>
     </footer>
 
