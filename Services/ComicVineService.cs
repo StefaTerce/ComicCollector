@@ -52,15 +52,17 @@ namespace ComicCollector.Services
             return null;
         }
 
-        public async Task<List<Comic>> SearchComicsAsync(ComicVineSearchQuery searchQuery)
+        public async Task<(List<Comic> Comics, int TotalResults)> SearchComicsAsync(ComicVineSearchQuery searchQuery)
         {
             var comics = new List<Comic>();
+            int totalResults = 0;
+
             try
             {
                 if (string.IsNullOrWhiteSpace(_apiKey))
                 {
                     _logger.LogWarning("ComicVine API key is not configured.");
-                    return comics;
+                    return (comics, totalResults);
                 }
 
                 var queryParams = HttpUtility.ParseQueryString(string.Empty);
@@ -73,7 +75,6 @@ namespace ComicCollector.Services
                 queryParams["field_list"] = searchQuery.FieldList;
                 if (!string.IsNullOrWhiteSpace(searchQuery.Sort)) queryParams["sort"] = searchQuery.Sort;
 
-
                 string requestUrl = $"{_baseUrl}/search?{queryParams.ToString()}";
                 _logger.LogInformation($"Requesting ComicVine API: {requestUrl}");
 
@@ -83,7 +84,7 @@ namespace ComicCollector.Services
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogError($"ComicVine API request failed. Status: {response.StatusCode}, URL: {requestUrl}, Response: {responseContent.Substring(0, Math.Min(500, responseContent.Length))}");
-                    return comics;
+                    return (comics, totalResults);
                 }
 
                 var comicVineResponse = JsonSerializer.Deserialize<ComicVineResponse>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -91,8 +92,10 @@ namespace ComicCollector.Services
                 if (comicVineResponse?.Error != "OK" || comicVineResponse.Results == null)
                 {
                     _logger.LogError($"ComicVine API returned an error or no results. Error: '{comicVineResponse?.Error}', Results Count: {comicVineResponse?.Results?.Count}. URL: {requestUrl}");
-                    return comics;
+                    return (comics, comicVineResponse?.NumberOfTotalResults ?? 0);
                 }
+
+                totalResults = comicVineResponse.NumberOfTotalResults;
 
                 foreach (var issue in comicVineResponse.Results)
                 {
@@ -107,12 +110,10 @@ namespace ComicCollector.Services
                     int? issueNumberParsed = null;
                     if (!string.IsNullOrEmpty(issue.IssueNumber) && int.TryParse(issue.IssueNumber, out int num)) issueNumberParsed = num;
 
-                    string imageUrl = issue.Image?.SmallUrl ?? issue.Image?.ThumbUrl ?? issue.Image?.IconUrl; // Prova più opzioni
+                    string imageUrl = issue.Image?.SmallUrl ?? issue.Image?.ThumbUrl ?? issue.Image?.IconUrl;
                     if (string.IsNullOrEmpty(imageUrl) && issue.Image?.OriginalUrl != null)
                     {
                         _logger.LogWarning($"ComicVine - Title: {issue.Name}, No small/thumb/icon image. Original URL exists: {issue.Image.OriginalUrl} but might be too large.");
-                        // Potresti decidere di usare OriginalUrl se è l'unica opzione, ma fai attenzione alle dimensioni.
-                        // imageUrl = issue.Image.OriginalUrl; // Uncomment if you want to use it as a last resort
                     }
                     _logger.LogInformation($"ComicVine - Title: '{issue.Name}', Issue ID: {issue.Id}, Attempted Image URL: '{imageUrl}' (From Small: '{issue.Image?.SmallUrl}', Thumb: '{issue.Image?.ThumbUrl}', Icon: '{issue.Image?.IconUrl}', Original: '{issue.Image?.OriginalUrl}')");
 
@@ -125,7 +126,7 @@ namespace ComicCollector.Services
                         Author = authorNames,
                         Publisher = issue.Volume?.Name != null ? GetPublisherFromVolume(issue.Volume.Name) : "Unknown",
                         PublicationDate = ParseComicVineDate(issue.CoverDate ?? issue.StoreDate) ?? DateTime.MinValue,
-                        CoverImage = imageUrl, // Assegna l'URL trovato
+                        CoverImage = imageUrl,
                         Description = SanitizeHtml(issue.Description),
                         Source = "ComicVine"
                     });
@@ -134,16 +135,19 @@ namespace ComicCollector.Services
             catch (HttpRequestException ex)
             {
                 _logger.LogError(ex, "HttpRequestException while searching comics on ComicVine. URL: {RequestUrl}", $"{_baseUrl}/search?{HttpUtility.ParseQueryString(string.Empty)}");
+                return (new List<Comic>(), 0);
             }
             catch (JsonException ex)
             {
                 _logger.LogError(ex, "JsonException while deserializing ComicVine response.");
+                return (new List<Comic>(), 0);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Generic error searching comics on ComicVine.");
+                return (new List<Comic>(), 0);
             }
-            return comics;
+            return (comics, totalResults);
         }
 
         private string GetPublisherFromVolume(string volumeName)

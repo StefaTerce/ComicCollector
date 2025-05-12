@@ -34,25 +34,6 @@
                             <input type="text" asp-for="SearchQuery" class="form-control form-control-lg" placeholder="Titolo, serie, autore..." autofocus>
                             <button class="btn btn-primary btn-lg" type="submit"><i class="bi bi-search"></i> Cerca</button>
                         </div>
-
-                        <div class="row g-3">
-                            <div class="col-md-auto">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" asp-for="SearchComicVine" id="searchComicVine">
-                                    <label class="form-check-label" for="searchComicVine">
-                                        ComicVine
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-auto">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" asp-for="SearchMangaDex" id="searchMangaDex">
-                                    <label class="form-check-label" for="searchMangaDex">
-                                        MangaDex
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
                     </form>
                 </div>
             </div>
@@ -98,22 +79,41 @@
                                             </p>
                                         </div>
                                         <div class="card-footer bg-transparent border-0 p-3 pt-0 mt-auto">
-                                            <form method="post" asp-page="/Collection/Index" asp-page-handler="AddToCollectionFromDiscover" class="d-grid">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="title" value="@comic.Title" />
-                                                <input type="hidden" name="series" value="@comic.Series" />
-                                                <input type="hidden" name="issueNumber" value="@(comic.IssueNumber ?? 0)" />
-                                                <input type="hidden" name="author" value="@comic.Author" />
-                                                <input type="hidden" name="publisher" value="@(comic.Publisher ?? "N/A")" />
-                                                <input type="hidden" name="publicationDateStr" value="@comic.PublicationDate.ToString("o")" />
-                                                <input type="hidden" name="coverImage" value="@comic.CoverImage" />
-                                                <input type="hidden" name="description" value="@(comic.Description ?? "")" />
-                                                <input type="hidden" name="source" value="@comic.Source" />
-                                                <input type="hidden" name="sourceId" value="@comic.SourceId" />
-                                                <button type="submit" class="btn btn-sm btn-success w-100" title="Aggiungi alla collezione">
-                                                    <i class="bi bi-plus-circle"></i> Aggiungi
+                                            <div class="d-flex gap-2">
+                                                <button type="button" class="btn btn-sm btn-outline-primary flex-grow-1 comic-details-btn" 
+                                                        onclick="showDiscoverItemDetails('@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(comic.Title)', 
+                                                                    '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(comic.Series)', 
+                                                                    '@(comic.IssueNumber?.ToString() ?? "0")', 
+                                                                    '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(comic.Author ?? "")', 
+                                                                    '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(comic.Publisher ?? "N/A")', 
+                                                                    '@comic.PublicationDate.ToString("yyyy-MM-dd")', 
+                                                                    '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(comic.CoverImage ?? "")', 
+                                                                    '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(comic.Description ?? "")', 
+                                                                    '@(comic.Source ?? "ComicVine")', 
+                                                                    '@comic.SourceId', 
+                                                                    '@(comic.PageCount?.ToString() ?? "0")', 
+                                                                    this)">
+                                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                                    <i class="bi bi-eye icon-eye"></i>
+                                                    <span class="button-text">Dettagli</span>
                                                 </button>
-                                            </form>
+                                                <form method="post" asp-page="/Collection/Index" asp-page-handler="AddToCollectionFromDiscover">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="title" value="@comic.Title" />
+                                                    <input type="hidden" name="series" value="@comic.Series" />
+                                                    <input type="hidden" name="issueNumber" value="@(comic.IssueNumber ?? 0)" />
+                                                    <input type="hidden" name="author" value="@comic.Author" />
+                                                    <input type="hidden" name="publisher" value="@(comic.Publisher ?? "N/A")" />
+                                                    <input type="hidden" name="publicationDateStr" value="@comic.PublicationDate.ToString("o")" />
+                                                    <input type="hidden" name="coverImage" value="@comic.CoverImage" />
+                                                    <input type="hidden" name="description" value="@(comic.Description ?? "")" />
+                                                    <input type="hidden" name="source" value="@comic.Source" />
+                                                    <input type="hidden" name="sourceId" value="@comic.SourceId" />
+                                                    <button type="submit" class="btn btn-sm btn-success" title="Aggiungi alla collezione">
+                                                        <i class="bi bi-plus-circle"></i> Aggiungi
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -143,22 +143,41 @@
                                             </p>
                                         </div>
                                         <div class="card-footer bg-transparent border-0 p-3 pt-0 mt-auto">
-                                            <form method="post" asp-page="/Collection/Index" asp-page-handler="AddToCollectionFromDiscover" class="d-grid">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="title" value="@manga.Title" />
-                                                <input type="hidden" name="series" value="Manga" />
-                                                <input type="hidden" name="issueNumber" value="0" />
-                                                <input type="hidden" name="author" value="@manga.Author" />
-                                                <input type="hidden" name="publisher" value="N/A" />
-                                                <input type="hidden" name="publicationDateStr" value="@manga.PublicationDateForSort.ToString("o")" />
-                                                <input type="hidden" name="coverImage" value="@manga.CoverImageUrl" />
-                                                <input type="hidden" name="description" value="@(manga.Description ?? "")" />
-                                                <input type="hidden" name="source" value="@manga.Source" />
-                                                <input type="hidden" name="sourceId" value="@manga.Id" />
-                                                <button type="submit" class="btn btn-sm btn-success w-100" title="Aggiungi alla collezione">
-                                                    <i class="bi bi-plus-circle"></i> Aggiungi
+                                            <div class="d-flex gap-2">
+                                                <button type="button" class="btn btn-sm btn-outline-primary flex-grow-1 comic-details-btn" 
+                                                        onclick="showDiscoverItemDetails('@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(manga.Title)', 
+                                                                    '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode("Manga")', 
+                                                                    '0', 
+                                                                    '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(manga.Author ?? "")', 
+                                                                    'N/A', 
+                                                                    '@manga.PublicationDateForSort.ToString("yyyy-MM-dd")', 
+                                                                    '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(manga.CoverImageUrl ?? "")', 
+                                                                    '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(manga.Description ?? "")', 
+                                                                    '@(manga.Source ?? "MangaDex")', 
+                                                                    '@manga.Id', 
+                                                                    '0', 
+                                                                    this)">
+                                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                                    <i class="bi bi-eye icon-eye"></i>
+                                                    <span class="button-text">Dettagli</span>
                                                 </button>
-                                            </form>
+                                                <form method="post" asp-page="/Collection/Index" asp-page-handler="AddToCollectionFromDiscover">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="title" value="@manga.Title" />
+                                                    <input type="hidden" name="series" value="Manga" />
+                                                    <input type="hidden" name="issueNumber" value="0" />
+                                                    <input type="hidden" name="author" value="@manga.Author" />
+                                                    <input type="hidden" name="publisher" value="N/A" />
+                                                    <input type="hidden" name="publicationDateStr" value="@manga.PublicationDateForSort.ToString("o")" />
+                                                    <input type="hidden" name="coverImage" value="@manga.CoverImageUrl" />
+                                                    <input type="hidden" name="description" value="@(manga.Description ?? "")" />
+                                                    <input type="hidden" name="source" value="@manga.Source" />
+                                                    <input type="hidden" name="sourceId" value="@manga.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-success" title="Aggiungi alla collezione">
+                                                        <i class="bi bi-plus-circle"></i> Aggiungi
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -185,7 +204,7 @@
         else
         {
             <ul class="nav nav-tabs mb-4" id="searchResultsTabs" role="tablist">
-                @if (Model.SearchComicVine && Model.ComicVineResults.Any())
+                @if (Model.ComicVineResults.Any())
                 {
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="comics-tab" data-bs-toggle="tab" data-bs-target="#comics-results" type="button" role="tab" aria-controls="comics-results" aria-selected="true">
@@ -193,7 +212,7 @@
                         </button>
                     </li>
                 }
-                @if (Model.SearchMangaDex && Model.MangaDexResults.Any())
+                @if (Model.MangaDexResults.Any())
                 {
                     <li class="nav-item" role="presentation">
                         <button class="nav-link @((!Model.ComicVineResults.Any() && Model.MangaDexResults.Any()) ? "active" : "")" id="manga-tab" data-bs-toggle="tab" data-bs-target="#manga-results" type="button" role="tab" aria-controls="manga-results" aria-selected="@((!Model.ComicVineResults.Any() && Model.MangaDexResults.Any()))">
@@ -204,7 +223,7 @@
             </ul>
 
             <div class="tab-content" id="searchResultsTabContent">
-                @if (Model.SearchComicVine && Model.ComicVineResults.Any())
+                @if (Model.ComicVineResults.Any())
                 {
                     <div class="tab-pane fade @(Model.ComicVineResults.Any() ? "show active" : "")" id="comics-results" role="tabpanel" aria-labelledby="comics-tab">
                         <div class="row row-cols-1 row-cols-sm-2 row-cols-md-2 row-cols-lg-3 g-4">
@@ -234,24 +253,42 @@
                                                     <p class="card-text extra-small description-truncate-results d-none d-sm-block">
                                                         @(string.IsNullOrEmpty(comic.Description) ? "Nessuna descrizione." : comic.Description)
                                                     </p>
-                                                </div>
-                                                <div class="card-footer bg-transparent border-0 p-3 pt-0 mt-auto">
-                                                    <form method="post" asp-page="/Collection/Index" asp-page-handler="AddToCollectionFromDiscover" class="d-grid">
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="title" value="@comic.Title" />
-                                                        <input type="hidden" name="series" value="@comic.Series" />
-                                                        <input type="hidden" name="issueNumber" value="@(comic.IssueNumber ?? 0)" />
-                                                        <input type="hidden" name="author" value="@comic.Author" />
-                                                        <input type="hidden" name="publisher" value="@(comic.Publisher ?? "N/A")" />
-                                                        <input type="hidden" name="publicationDateStr" value="@comic.PublicationDate.ToString("o")" />
-                                                        <input type="hidden" name="coverImage" value="@comic.CoverImage" />
-                                                        <input type="hidden" name="description" value="@(comic.Description ?? "")" />
-                                                        <input type="hidden" name="source" value="ComicVine" />
-                                                        <input type="hidden" name="sourceId" value="@comic.SourceId" />
-                                                        <button type="submit" class="btn btn-sm btn-success w-100" title="Aggiungi alla collezione">
-                                                            <i class="bi bi-plus-circle"></i> Aggiungi
+                                                </div>                                                <div class="card-footer bg-transparent border-0 p-3 pt-0 mt-auto">
+                                                    <div class="d-flex gap-2">
+                                                        <button type="button" class="btn btn-sm btn-outline-primary flex-grow-1 comic-details-btn" 
+                                                                onclick="showDiscoverItemDetails('@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(comic.Title)', 
+                                                                            '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(comic.Series)', 
+                                                                            '@(comic.IssueNumber?.ToString() ?? "0")', 
+                                                                            '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(comic.Author ?? "")', 
+                                                                            '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(comic.Publisher ?? "N/A")', 
+                                                                            '@comic.PublicationDate.ToString("yyyy-MM-dd")', 
+                                                                            '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(comic.CoverImage ?? "")', 
+                                                                            '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(comic.Description ?? "")', 
+                                                                            'ComicVine', 
+                                                                            '@comic.SourceId', 
+                                                                            '@(comic.PageCount?.ToString() ?? "0")', 
+                                                                            this)">
+                                                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                                            <i class="bi bi-eye icon-eye"></i>
+                                                            <span class="button-text">Dettagli</span>
                                                         </button>
-                                                    </form>
+                                                        <form method="post" asp-page="/Collection/Index" asp-page-handler="AddToCollectionFromDiscover">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="title" value="@comic.Title" />
+                                                            <input type="hidden" name="series" value="@comic.Series" />
+                                                            <input type="hidden" name="issueNumber" value="@(comic.IssueNumber ?? 0)" />
+                                                            <input type="hidden" name="author" value="@comic.Author" />
+                                                            <input type="hidden" name="publisher" value="@(comic.Publisher ?? "N/A")" />
+                                                            <input type="hidden" name="publicationDateStr" value="@comic.PublicationDate.ToString("o")" />
+                                                            <input type="hidden" name="coverImage" value="@comic.CoverImage" />
+                                                            <input type="hidden" name="description" value="@(comic.Description ?? "")" />
+                                                            <input type="hidden" name="source" value="ComicVine" />
+                                                            <input type="hidden" name="sourceId" value="@comic.SourceId" />
+                                                            <button type="submit" class="btn btn-sm btn-success" title="Aggiungi alla collezione">
+                                                                <i class="bi bi-plus-circle"></i> Aggiungi
+                                                            </button>
+                                                        </form>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -262,7 +299,7 @@
                     </div>
                 }
 
-                @if (Model.SearchMangaDex && Model.MangaDexResults.Any())
+                @if (Model.MangaDexResults.Any())
                 {
                     <div class="tab-pane fade @((!Model.ComicVineResults.Any() && Model.MangaDexResults.Any()) ? "show active" : "")" id="manga-results" role="tabpanel" aria-labelledby="manga-tab">
                         <div class="row row-cols-1 row-cols-sm-2 row-cols-md-2 row-cols-lg-3 g-4">
@@ -287,24 +324,42 @@
                                                     <p class="card-text extra-small description-truncate-results d-none d-sm-block">
                                                         @(string.IsNullOrEmpty(manga.Description) ? "Nessuna descrizione." : manga.Description)
                                                     </p>
-                                                </div>
-                                                <div class="card-footer bg-transparent border-0 p-3 pt-0 mt-auto">
-                                                    <form method="post" asp-page="/Collection/Index" asp-page-handler="AddToCollectionFromDiscover" class="d-grid">
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="title" value="@manga.Title" />
-                                                        <input type="hidden" name="series" value="Manga" />
-                                                        <input type="hidden" name="issueNumber" value="0" />
-                                                        <input type="hidden" name="author" value="@manga.Author" />
-                                                        <input type="hidden" name="publisher" value="N/A" />
-                                                        <input type="hidden" name="publicationDateStr" value="@manga.PublicationDateForSort.ToString("o")" />
-                                                        <input type="hidden" name="coverImage" value="@manga.CoverImageUrl" />
-                                                        <input type="hidden" name="description" value="@(manga.Description ?? "")" />
-                                                        <input type="hidden" name="source" value="MangaDex" />
-                                                        <input type="hidden" name="sourceId" value="@manga.Id" />
-                                                        <button type="submit" class="btn btn-sm btn-success w-100" title="Aggiungi alla collezione">
-                                                            <i class="bi bi-plus-circle"></i> Aggiungi
+                                                </div>                                                <div class="card-footer bg-transparent border-0 p-3 pt-0 mt-auto">
+                                                    <div class="d-flex gap-2">
+                                                        <button type="button" class="btn btn-sm btn-outline-primary flex-grow-1 comic-details-btn" 
+                                                                onclick="showDiscoverItemDetails('@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(manga.Title)', 
+                                                                            '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode("Manga")', 
+                                                                            '0', 
+                                                                            '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(manga.Author ?? "")', 
+                                                                            'N/A', 
+                                                                            '@manga.PublicationDateForSort.ToString("yyyy-MM-dd")', 
+                                                                            '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(manga.CoverImageUrl ?? "")', 
+                                                                            '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(manga.Description ?? "")', 
+                                                                            '@(manga.Source ?? "MangaDex")', 
+                                                                            '@manga.Id', 
+                                                                            '0', 
+                                                                            this)">
+                                                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                                            <i class="bi bi-eye icon-eye"></i>
+                                                            <span class="button-text">Dettagli</span>
                                                         </button>
-                                                    </form>
+                                                        <form method="post" asp-page="/Collection/Index" asp-page-handler="AddToCollectionFromDiscover">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="title" value="@manga.Title" />
+                                                            <input type="hidden" name="series" value="Manga" />
+                                                            <input type="hidden" name="issueNumber" value="0" />
+                                                            <input type="hidden" name="author" value="@manga.Author" />
+                                                            <input type="hidden" name="publisher" value="N/A" />
+                                                            <input type="hidden" name="publicationDateStr" value="@manga.PublicationDateForSort.ToString("o")" />
+                                                            <input type="hidden" name="coverImage" value="@manga.CoverImageUrl" />
+                                                            <input type="hidden" name="description" value="@(manga.Description ?? "")" />
+                                                            <input type="hidden" name="source" value="@manga.Source" />
+                                                            <input type="hidden" name="sourceId" value="@manga.Id" />
+                                                            <button type="submit" class="btn btn-sm btn-success" title="Aggiungi alla collezione">
+                                                                <i class="bi bi-plus-circle"></i> Aggiungi
+                                                            </button>
+                                                        </form>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -355,3 +410,214 @@
         margin-bottom: 0.2rem !important;
     }
 </style>
+
+<!-- Modal Dettagli Fumetto (Generic) -->
+<div class="modal fade" id="comicDetailsModal" tabindex="-1" aria-labelledby="comicDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="comicDetailsModalLabel">Dettagli Fumetto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <img id="modalComicCoverImage" src="/images/placeholder_cover.png" class="img-fluid rounded mb-3" alt="Copertina" style="max-height: 300px; object-fit: contain;">
+                    </div>
+                    <div class="col-md-8">
+                        <h3 id="modalComicTitle"></h3>
+                        <p class="text-muted">
+                            <span id="modalComicSeries"></span>
+                            <span id="modalComicIssue"></span>
+                        </p>
+                        <dl class="row">
+                            <dt class="col-sm-4">Autore:</dt>
+                            <dd class="col-sm-8" id="modalComicAuthor"></dd>
+
+                            <dt class="col-sm-4">Editore:</dt>
+                            <dd class="col-sm-8" id="modalComicPublisher"></dd>
+
+                            <dt class="col-sm-4">Data Pubblicazione:</dt>
+                            <dd class="col-sm-8" id="modalComicPublicationDate"></dd>
+
+                            <dt class="col-sm-4">Pagine:</dt>
+                            <dd class="col-sm-8" id="modalComicPageCount"></dd>
+
+                            <dt class="col-sm-4">Fonte Dati:</dt>
+                            <dd class="col-sm-8"><span id="modalComicSource"></span> <span id="modalComicSourceIdInfo"></span></dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <h5><i class="bi bi-robot me-1"></i>Approfondimenti IA (Gemini)</h5>
+                    <div id="geminiReviewContent" class="p-3 bg-light border rounded">
+                        <p id="modalGeminiReviewSummary">Caricamento recensione...</p>
+                    </div>
+                    <small id="modalEnrichmentStatus" class="text-muted"></small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function showDiscoverItemDetails(title, series, issueNumber, author, publisher, publicationDateStr, 
+                                         coverImage, description, source, sourceId, pageCount, buttonElement) {
+            const originalButtonText = $(buttonElement).find('.button-text').text();
+            const spinner = $(buttonElement).find('.spinner-border');
+            const icon = $(buttonElement).find('.icon-eye');
+
+            // Disable button and show spinner
+            $(buttonElement).prop('disabled', true);
+            $(buttonElement).find('.button-text').text('Caricamento...');
+            spinner.removeClass('d-none');
+            icon.addClass('d-none');
+
+            // Reset modal content before fetching new data
+            $('#comicDetailsModalLabel').text('Dettagli');
+            $('#modalComicCoverImage').attr('src', '/images/placeholder_cover.png');
+            $('#modalComicTitle').text('');
+            $('#modalComicSeries').text('');
+            $('#modalComicIssue').text('');
+            $('#modalComicAuthor').text('');
+            $('#modalComicPublisher').text('');
+            $('#modalComicPublicationDate').text('');
+            $('#modalComicPageCount').text('');
+            $('#modalComicSource').text('');
+            $('#modalComicSourceIdInfo').text('');
+            $('#modalComicDescription').html('');
+            $('#modalGeminiReviewSummary').text('Caricamento recensione...');
+            $('#modalEnrichmentStatus').text('');
+            $('#geminiReviewContent').html('<p id="modalGeminiReviewSummary">Caricamento recensione...</p>');
+
+            // Popola il modale con i dati basic
+            $('#comicDetailsModalLabel').text('Dettagli: ' + title);
+            $('#modalComicCoverImage').attr('src', coverImage || '/images/placeholder_cover.png').on('error', function() { $(this).attr('src', '/images/placeholder_cover.png'); });
+            $('#modalComicTitle').text(title || 'N/A');
+            $('#modalComicSeries').text(series || 'N/A');
+            if (issueNumber && parseInt(issueNumber) > 0) {
+                $('#modalComicIssue').text(' #' + issueNumber);
+            } else {
+                $('#modalComicIssue').text('');
+            }
+            $('#modalComicAuthor').text(author || 'N/A');
+            $('#modalComicPublisher').text(publisher || 'N/A');
+            $('#modalComicPublicationDate').text(publicationDateStr ? new Date(publicationDateStr).toLocaleDateString() : 'N/A');
+            $('#modalComicPageCount').text(pageCount || 'N/A');
+            $('#modalComicSource').text(source || 'N/A');
+            $('#modalComicSourceIdInfo').text(sourceId ? '(ID: ' + sourceId + ')' : '');
+            
+            // Richiedi i dettagli aggiuntivi tramite Gemini
+            $.ajax({
+                url: `/Discover/Index?handler=ItemDetailsForGemini&title=${encodeURIComponent(title)}&series=${encodeURIComponent(series)}&author=${encodeURIComponent(author)}&publisher=${encodeURIComponent(publisher)}&source=${encodeURIComponent(source)}&sourceId=${encodeURIComponent(sourceId)}&description=${encodeURIComponent(description)}`,
+                method: 'GET',
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader("XSRF-TOKEN", 
+                        $('input:hidden[name="__RequestVerificationToken"]').val());
+                },
+                success: function (data) {
+                    // Restore button state
+                    $(buttonElement).prop('disabled', false);
+                    $(buttonElement).find('.button-text').text(originalButtonText);
+                    spinner.addClass('d-none');
+                    icon.removeClass('d-none');
+
+                    if (data.error) {
+                        $('#geminiReviewContent').html(`<p class="text-danger">Errore nel recupero della recensione.</p>`);
+                        $('#modalEnrichmentStatus').text(data.error);
+                    } else {
+                        let reviewHtml = '<p>Recensione non disponibile o API Key non configurata.</p>';
+                        if (data.geminiReviewSummary) {
+                            let summaryText = data.geminiReviewSummary;
+                            let formattedSummary = '';
+
+                            const positiveHeaderIt = "Lati Positivi:";
+                            const negativeHeaderIt = "Lati Negativi:";
+                            const positiveHeaderEn = "Positive Traits:";
+                            const negativeHeaderEn = "Negative Traits:";
+
+                            let actualPositiveHeader = summaryText.includes(positiveHeaderIt) ? positiveHeaderIt : (summaryText.includes(positiveHeaderEn) ? positiveHeaderEn : null);
+                            let actualNegativeHeader = summaryText.includes(negativeHeaderIt) ? negativeHeaderIt : (summaryText.includes(negativeHeaderEn) ? negativeHeaderEn : null);
+                            
+                            let contentAfterPositive = "";
+                            let positiveTraitsSection = "";
+                            let negativeTraitsSection = "";
+
+                            if (actualPositiveHeader) {
+                                formattedSummary += `<h6 class="text-success mt-2"><i class="bi bi-hand-thumbs-up-fill me-1"></i>${actualPositiveHeader}</h6>`;
+                                let startPosIdx = summaryText.indexOf(actualPositiveHeader) + actualPositiveHeader.length;
+                                contentAfterPositive = summaryText.substring(startPosIdx);
+                                
+                                let endPosIdx = actualNegativeHeader ? contentAfterPositive.indexOf(actualNegativeHeader) : -1;
+                                positiveTraitsSection = (endPosIdx !== -1) ? contentAfterPositive.substring(0, endPosIdx).trim() : contentAfterPositive.trim();
+
+                                if (positiveTraitsSection) {
+                                    formattedSummary += '<ul class="list-unstyled ps-3>';
+                                    positiveTraitsSection.split(/\n/).forEach(item => {
+                                        let trait = item.trim();
+                                        if (trait.startsWith("*")) {
+                                            trait = trait.substring(1).trim();
+                                        }
+                                        if (trait) {
+                                            formattedSummary += `<li><i class="bi bi-check-circle-fill text-success me-2"></i>${trait}</li>`;
+                                        }
+                                    });
+                                    formattedSummary += '</ul>';
+                                }
+                            }
+
+                            if (actualNegativeHeader) {
+                                formattedSummary += `<h6 class="text-danger mt-3"><i class="bi bi-hand-thumbs-down-fill me-1"></i>${actualNegativeHeader}</h6>`;
+                                let startNegIdx = summaryText.indexOf(actualNegativeHeader) + actualNegativeHeader.length;
+                                let searchBaseForNegative = actualPositiveHeader && summaryText.indexOf(actualNegativeHeader) > summaryText.indexOf(actualPositiveHeader) ? contentAfterPositive : summaryText;
+                                startNegIdx = searchBaseForNegative.indexOf(actualNegativeHeader) + actualNegativeHeader.length;
+                                negativeTraitsSection = searchBaseForNegative.substring(startNegIdx).trim();
+                                
+                                if (negativeTraitsSection) {
+                                    formattedSummary += '<ul class="list-unstyled ps-3>';
+                                    negativeTraitsSection.split(/\n/).forEach(item => {
+                                        let trait = item.trim();
+                                        if (trait.startsWith("*")) {
+                                            trait = trait.substring(1).trim();
+                                        }
+                                        if (trait) {
+                                            formattedSummary += `<li><i class="bi bi-x-circle-fill text-danger me-2"></i>${trait}</li>`;
+                                        }
+                                    });
+                                    formattedSummary += '</ul>';
+                                }
+                            }
+                            
+                            if (!formattedSummary && summaryText) {
+                                reviewHtml = summaryText.replace(/\n/g, '<br>');
+                            } else if (formattedSummary) {
+                                reviewHtml = formattedSummary;
+                            }
+                        }
+                        $('#geminiReviewContent').html(reviewHtml);
+                    }
+
+                    $('#comicDetailsModal').modal('show');
+                },
+                error: function (xhr, status, error) {
+                    // Restore button
+                    $(buttonElement).prop('disabled', false);
+                    $(buttonElement).find('.button-text').text(originalButtonText);
+                    spinner.addClass('d-none');
+                    icon.removeClass('d-none');
+
+                    console.error('Errore nel recupero dei dettagli:', error, xhr.responseText);
+                    $('#geminiReviewContent').html('<p class="text-danger">Errore AJAX nel caricare i dettagli.</p>');
+                    $('#modalEnrichmentStatus').text('Consultare la console per dettagli sull\'errore.');
+                    $('#comicDetailsModal').modal('show');
+                }
+            });
+        }
+    </script>
+}

@@ -27,12 +27,6 @@ namespace ComicCollector.Pages.Discover
         [BindProperty(SupportsGet = true)]
         public string SearchQuery { get; set; } = string.Empty;
 
-        [BindProperty]
-        public bool SearchComicVine { get; set; } = true;
-
-        [BindProperty]
-        public bool SearchMangaDex { get; set; } = true;
-
         public List<Comic> ComicVineResults { get; set; } = new List<Comic>();
         public List<MangaViewModel> MangaDexResults { get; set; } = new List<MangaViewModel>();
         public bool ShowSearchResults { get; set; } = false;
@@ -85,21 +79,9 @@ namespace ComicCollector.Pages.Discover
             ShowSearchResults = true;
             TempData["LastSearchQuery"] = SearchQuery;
 
-            if (string.IsNullOrWhiteSpace(SearchQuery) && !SearchComicVine && !SearchMangaDex)
-            {
-                StatusMessage = "Inserisci un termine di ricerca o seleziona almeno una fonte.";
-                IsError = true;
-                return Page();
-            }
             if (string.IsNullOrWhiteSpace(SearchQuery))
             {
                 StatusMessage = "Inserisci un termine di ricerca.";
-                IsError = true;
-                return Page();
-            }
-            if (!SearchComicVine && !SearchMangaDex)
-            {
-                StatusMessage = "Seleziona almeno una fonte (ComicVine o MangaDex).";
                 IsError = true;
                 return Page();
             }
@@ -112,26 +94,12 @@ namespace ComicCollector.Pages.Discover
         {
             if (string.IsNullOrWhiteSpace(SearchQuery)) return;
 
-            _logger.LogInformation($"Performing search for: '{SearchQuery}', ComicVine: {SearchComicVine}, MangaDex: {SearchMangaDex}");
-            var searchTasks = new List<Task>();
-
-            if (SearchComicVine)
+            _logger.LogInformation($"Performing search for: '{SearchQuery}' on all available sources.");
+            var searchTasks = new List<Task>
             {
-                searchTasks.Add(SearchComicVineAsync(isFeaturedSearch: false));
-            }
-            else
-            {
-                ComicVineResults = new List<Comic>();
-            }
-
-            if (SearchMangaDex)
-            {
-                searchTasks.Add(SearchMangaDexAsync(isFeaturedSearch: false));
-            }
-            else
-            {
-                MangaDexResults = new List<MangaViewModel>();
-            }
+                SearchComicVineAsync(isFeaturedSearch: false),
+                SearchMangaDexAsync(isFeaturedSearch: false)
+            };
 
             if (searchTasks.Any())
             {
@@ -148,16 +116,25 @@ namespace ComicCollector.Pages.Discover
                     Query = isFeaturedSearch ? "" : SearchQuery,
                     Limit = isFeaturedSearch ? FEATURED_ITEMS_PER_SOURCE : 24,
                 };
-                var results = await _comicVineService.SearchComicsAsync(query);
+                // Assuming _comicVineService.SearchComicsAsync returns a tuple like (List<Comic> Comics, int TotalResults)
+                // We will access its elements using Item1 and Item2.
+                var comicVineTuple = await _comicVineService.SearchComicsAsync(query); 
+                
                 if (isFeaturedSearch)
                 {
-                    lock (FeaturedItems) { FeaturedItems.AddRange(results); }
+                    // Access .Item1 (List<Comic>) from the tuple
+                    if (comicVineTuple.Item1 != null)
+                    {
+                        lock (FeaturedItems) { FeaturedItems.AddRange(comicVineTuple.Item1); }
+                    }
                 }
                 else
                 {
-                    ComicVineResults = results;
+                    // Access .Item1 (List<Comic>) from the tuple
+                    ComicVineResults = comicVineTuple.Item1 ?? new List<Comic>();
                 }
-                _logger.LogInformation($"Found {results.Count} comics from ComicVine for '{(isFeaturedSearch ? "featured" : SearchQuery)}'.");
+                // Access .Item1.Count and .Item2 (TotalResults) from the tuple
+                _logger.LogInformation($"Found {(comicVineTuple.Item1?.Count ?? 0)} comics from ComicVine for '{(isFeaturedSearch ? "featured" : SearchQuery)}'. Total results available: {comicVineTuple.Item2}.");
             }
             catch (Exception ex)
             {
@@ -246,6 +223,38 @@ namespace ComicCollector.Pages.Discover
             var random = new Random();
             FeaturedItems = FeaturedItems.OrderBy(x => random.Next()).Take(MAX_FEATURED_ITEMS_DISPLAY).ToList();
             _logger.LogInformation($"Total featured items after mixing and taking max: {FeaturedItems.Count}");
+        }
+
+        public async Task<JsonResult> OnGetItemDetailsForGeminiAsync(string title, string series, string author, string publisher, string source, string sourceId, string description)
+        {
+            _sessionInfo.LogSessionInfo("Discover/Index - OnGetItemDetailsForGeminiAsync Start");
+            _logger.LogInformation($"Getting Gemini details for item: '{title}' from source: {source}");
+
+            try
+            {
+                // Costruisci il prompt per Gemini
+                string prompt = $"Per il fumetto o manga intitolato '{title}'";
+                if (!string.IsNullOrWhiteSpace(series))
+                {
+                    prompt += $" nella serie '{series}'";
+                }
+                if (!string.IsNullOrWhiteSpace(author))
+                {
+                    prompt += $" dell'autore '{author}'";
+                }
+                prompt += ". Fornisci un elenco dettagliato dei suoi lati positivi (almeno 3-5 punti) e lati negativi (almeno 2-4 punti). Rispondi in italiano e formatta la risposta con intestazioni come 'Lati Positivi:' e 'Lati Negativi:'.";
+
+                // Chiama il servizio Gemini per ottenere la recensione
+                string? reviewSummary = await _geminiService.GetReviewSummaryAsync(prompt);
+
+                // Restituisci i risultati come JSON
+                return new JsonResult(new { geminiReviewSummary = reviewSummary });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting Gemini review for '{title}' from {source}");
+                return new JsonResult(new { error = "Si è verificato un errore durante il recupero dei dettagli da Gemini." });
+            }
         }
     }
 }
