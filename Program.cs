@@ -7,7 +7,7 @@ using ComicCollector.Services; // Aggiungi questo using
 var builder = WebApplication.CreateBuilder(args);
 
 // Aggiungi servizi al container.
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = "workstation id=ComicCollector.mssql.somee.com;packet size=4096;user id=terci_SQLLogin_1;pwd=ar836ue1v8;data source=ComicCollector.mssql.somee.com;persist security info=False;initial catalog=ComicCollector;TrustServerCertificate=True";
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
@@ -79,15 +79,14 @@ builder.Services.AddScoped<GeminiService>(); // Add GeminiService
 var app = builder.Build();
 
 // Configura pipeline HTTP.
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
+    app.UseMigrationsEndPoint();
 }
 else
 {
-    app.UseMigrationsEndPoint();
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
 }
 
 app.UseHttpsRedirection();
@@ -173,4 +172,4 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-app.Run();
+    app.Run();

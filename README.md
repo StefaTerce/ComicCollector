@@ -122,3 +122,7 @@ Gestire una collezione di fumetti e manga in formato cartaceo o digitale può di
 
 ---
 
+## Test di Account
+	test@example.com Test123!  
+	admin@example.com Admin123!  
+---
